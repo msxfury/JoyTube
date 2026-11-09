@@ -1,4 +1,10 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.util.Properties
+
+val localSigningProperties = Properties().apply {
+  val propertiesFile = rootProject.file("keystore.properties")
+  if (propertiesFile.exists()) propertiesFile.inputStream().use(::load)
+}
 
 plugins {
   alias(libs.plugins.android.application)
@@ -16,8 +22,8 @@ android {
     applicationId = "com.aistudio.joytube.xkvpzr"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.0.1"
+    versionCode = 3
+    versionName = "1.0.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -32,11 +38,13 @@ android {
   // and updating Android apps in AI Studio.
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val keystorePath = System.getenv("KEYSTORE_PATH")
+        ?: localSigningProperties.getProperty("storeFile")
+        ?: "${rootDir}/my-upload-key.jks"
+      storeFile = rootProject.file(keystorePath)
+      storePassword = System.getenv("STORE_PASSWORD") ?: localSigningProperties.getProperty("storePassword")
+      keyAlias = System.getenv("KEY_ALIAS") ?: localSigningProperties.getProperty("keyAlias") ?: "upload"
+      keyPassword = System.getenv("KEY_PASSWORD") ?: localSigningProperties.getProperty("keyPassword")
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")

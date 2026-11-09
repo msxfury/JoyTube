@@ -24,9 +24,12 @@ import com.example.backend.resilience.QuotaBudgetManager
 import com.example.backend.resilience.QuotaBudgetSnapshot
 import com.example.backend.search.QueryNormalizationPipeline
 import com.example.backend.search.UnifiedSearchCoordinator
+import com.example.backend.update.GitHubReleaseUpdateChecker
+import com.example.backend.update.JoyTubeReleaseUpdate
 import com.example.model.*
 import com.example.ui.components.ArtworkPreset
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,6 +63,7 @@ data class JoyTubeUiState(
     val latencySummary: LatencyPercentileSummary = LatencyPercentileSummary(0, 0L, 0L, 0L),
     val authSession: SupabaseAuthSession? = null,
     val globalPlayback: GlobalPlaybackSnapshot = GlobalPlaybackSnapshot(),
+    val updateAvailable: JoyTubeReleaseUpdate? = null,
 
     // Player state
     val isPlaying: Boolean = false,
@@ -116,6 +120,8 @@ class JoyTubeViewModel : ViewModel() {
     private val cloudRepository = SupabaseJoyTubeRepository()
     val localDownloadCoordinator = LocalDeviceDownloadCoordinator()
     val playbackCoordinator = PlaybackCoordinator()
+    private val releaseUpdateChecker = GitHubReleaseUpdateChecker()
+    private var updateCheckInProgress = false
 
     val videoProvider = VideoProvider(quotaManager)
     val shortsProvider = ShortsProvider(quotaManager) { _uiState.value.mediaList }
@@ -305,6 +311,21 @@ class JoyTubeViewModel : ViewModel() {
 
     fun dismissFeedback() {
         _uiState.update { it.copy(feedbackMessage = null) }
+    }
+
+    fun checkForAppUpdate() {
+        if (!_uiState.value.isSignedIn || updateCheckInProgress) return
+        updateCheckInProgress = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = runCatching { releaseUpdateChecker.findNewerApk() }.getOrNull()
+            updateCheckInProgress = false
+            if (_uiState.value.isSignedIn) _uiState.update { it.copy(updateAvailable = result) }
+        }
+    }
+
+    fun clearAvailableAppUpdate() {
+        updateCheckInProgress = false
+        _uiState.update { it.copy(updateAvailable = null) }
     }
 
     fun toggleGlassDesign() {

@@ -77,6 +77,7 @@ This table describes source-level behavior, not a production guarantee. A screen
 | Captions | Caption preference can request English captions in the embed URL | **Limited.** Depends on available caption tracks; no download, translation, or transcription pipeline. |
 | Quality selection | Quality preference/menu exists in the UI | **Not an exact resolution control.** The embedded player determines actual playback quality. |
 | Google sign-in | Credential Manager's explicit Sign in with Google option obtains a Google ID token; app exchanges it with Supabase and encrypts its Supabase session using Android Keystore | **Code implemented; configuration and real-device validation required.** OAuth client IDs, package, and signing fingerprints must match. |
+| Release update notice | Checks the public `msxfury/JoyTube` latest-release endpoint at sign-in and every six hours while signed in | **APK-asset based.** Shows “New Update Available!” only when a newer stable release includes an `.apk`; Update opens the GitHub APK download URL. It does not silently install updates. |
 | JoyTube profile | Supabase Auth identity and profile upsert operations | **Partial.** Depends on provider setup, deployed schema, and RLS. |
 | Preferences | Theme and JSON setting reads/writes through the Supabase repository | **Partial.** A displayed setting may not have a complete runtime effect. |
 | Collections / favourites | Repository operations for collections, visibility, membership, and favourite flags | **Partial.** Validate each UI path against the deployed project. |
@@ -258,16 +259,16 @@ The Android OAuth client is separate from `GOOGLE_WEB_CLIENT_ID`. The app passes
 
 ## Build and sign a release APK
 
-The release build requires an upload keystore and signing passwords. Configure these environment variables before running Gradle:
+The release build uses the ignored local `keystore.properties` file when present, or the environment variables below. Keep the keystore and local properties backed up securely and never commit them:
 
 ```bash
-export KEYSTORE_PATH="$PWD/my-upload-key.jks"
+export KEYSTORE_PATH="$PWD/my-upload-key-v2.jks"
 export STORE_PASSWORD="<keystore-password>"
 export KEY_PASSWORD="<key-password>"
 ./gradlew clean :app:assembleRelease
 ```
 
-The APK output is `app/build/outputs/apk/release/app-release.apk`. Keep the keystore and passwords backed up securely. Future APKs intended to update an installed app must use the same signing key. Do not commit the keystore or passwords.
+The APK output is `app/build/outputs/apk/release/app-release.apk`. Future APKs intended to update an installation signed with this new key must use this same key. The replacement key cannot update older installs signed with the previous key; those installs must be uninstalled first, which removes their local app data. This app is distributed as direct APKs, so Play Console upload-key reset does not apply.
 
 The release build currently has minification disabled. After a successful build, make a versioned copy if needed:
 

@@ -1,11 +1,14 @@
 package com.example
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -16,14 +19,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
 import com.example.model.ActiveOverlay
 import com.example.backend.auth.SupabaseAuthRuntime
 import com.example.model.JoyTubeRoute
@@ -57,6 +66,20 @@ fun JoyTubeAppRoot(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isDockScrollCompacted by remember { mutableStateOf(false) }
+    var dismissedUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(uiState.isSignedIn) {
+        if (!uiState.isSignedIn) {
+            dismissedUpdateVersion = null
+            viewModel.clearAvailableAppUpdate()
+        } else {
+            while (true) {
+                viewModel.checkForAppUpdate()
+                delay(6 * 60 * 60 * 1000L)
+            }
+        }
+    }
 
     // Reset dock to full floating height whenever route changes
     LaunchedEffect(uiState.currentRoute) {
@@ -283,6 +306,45 @@ fun JoyTubeAppRoot(
                 onDismiss = { viewModel.dismissFeedback() },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
+
+            val releaseUpdate = uiState.updateAvailable
+            if (uiState.isSignedIn && releaseUpdate != null && dismissedUpdateVersion != releaseUpdate.version) {
+                AlertDialog(
+                    onDismissRequest = { dismissedUpdateVersion = releaseUpdate.version },
+                    title = { Text("New Update Available!") },
+                    text = { Text("JoyTube v${releaseUpdate.version}") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                dismissedUpdateVersion = releaseUpdate.version
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(releaseUpdate.apkUrl)))
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color(0xFF111318)
+                            )
+                        ) {
+                            Text("Update")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { dismissedUpdateVersion = releaseUpdate.version },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = JoyTubeColors.SurfaceElevated,
+                                contentColor = JoyTubeColors.TextPrimary
+                            )
+                        ) {
+                            Text("Later")
+                        }
+                    },
+                    containerColor = JoyTubeColors.Surface
+                )
+            }
         }
     }
 }
