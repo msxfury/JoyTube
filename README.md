@@ -46,7 +46,7 @@
 | Product | JoyTube for Android |
 | Maintainer | MSX_Fury |
 | Android application ID | `com.aistudio.joytube.xkvpzr` |
-| Current Android version | `1.0` (`versionCode` `1`) |
+| Current Android version | `1.0.1` (`versionCode` `2`) |
 | Android minimum SDK | API 24 |
 | Android target SDK | API 36 |
 | Android implementation | Kotlin, Jetpack Compose, Material 3 |
@@ -76,7 +76,7 @@ This table describes source-level behavior, not a production guarantee. A screen
 | Playback queue / mini-player state | Process-local coordinator for selected item, queue operations, and presentation state | **Partial.** This is not a standalone streaming engine. |
 | Captions | Caption preference can request English captions in the embed URL | **Limited.** Depends on available caption tracks; no download, translation, or transcription pipeline. |
 | Quality selection | Quality preference/menu exists in the UI | **Not an exact resolution control.** The embedded player determines actual playback quality. |
-| Google sign-in | Credential Manager obtains a Google ID token; app exchanges it with Supabase and encrypts its Supabase session using Android Keystore | **Code implemented; configuration and real-device validation required.** OAuth package and signing fingerprints must match. |
+| Google sign-in | Credential Manager's explicit Sign in with Google option obtains a Google ID token; app exchanges it with Supabase and encrypts its Supabase session using Android Keystore | **Code implemented; configuration and real-device validation required.** OAuth client IDs, package, and signing fingerprints must match. |
 | JoyTube profile | Supabase Auth identity and profile upsert operations | **Partial.** Depends on provider setup, deployed schema, and RLS. |
 | Preferences | Theme and JSON setting reads/writes through the Supabase repository | **Partial.** A displayed setting may not have a complete runtime effect. |
 | Collections / favourites | Repository operations for collections, visibility, membership, and favourite flags | **Partial.** Validate each UI path against the deployed project. |
@@ -224,6 +224,8 @@ For Google identity sign-in:
 3. Create an **Android** OAuth client using application ID `com.aistudio.joytube.xkvpzr` and the SHA-1 certificate fingerprint for the APK's signing key.
 4. Keep the Web client ID in the Android `GOOGLE_WEB_CLIENT_ID` configuration. The Android client is matched by package name and certificate; it does not replace the Web client ID used to request the Google ID token.
 
+In the Supabase Google provider configuration, include the Web client ID first, followed by the Android client ID, separated by a comma. Keep the Google client secret only in the Supabase provider configuration. The Android app uses `GetSignInWithGoogleOption` for its explicit sign-in button; the selected account's Google ID token is exchanged with Supabase Auth.
+
 The current Supabase URL, publishable key, and Google Web client ID are set in `app/build.gradle.kts` as public client configuration. Never put a Supabase secret/service-role key or Google OAuth client secret in the Android app or this repository. Move environment-specific public values into a controlled build configuration before creating separate staging and production builds.
 
 ### Configure the Android OAuth client
@@ -259,7 +261,7 @@ The release build currently has minification disabled. After a successful build,
 
 ```bash
 cp app/build/outputs/apk/release/app-release.apk \
-  app/build/outputs/apk/release/JoyTube-Android-v1.0.apk
+  app/build/outputs/apk/release/JoyTube-Android-v1.0.1.apk
 ```
 
 Update `versionName` when the human-readable release label changes and increment `versionCode` for each distributable update.
@@ -1077,6 +1079,23 @@ This appendix summarizes the migration in this repository. It does not certify a
 10. Never include the ID token in a bug report.
 11. Do not add YouTube scopes to resolve a JoyTube identity sign-in error.
 12. Rebuild only if the app's Web client ID or package configuration changed.
+
+#### I.3.a Credential Manager reports no Google credentials
+
+1. The app's visible control is an explicit Google sign-in button.
+2. Version `1.0.1` uses Credential Manager's dedicated Sign in with Google option rather than requesting only a previously authorized credential.
+3. Install the updated APK; the older release uses the previous credential request.
+4. Confirm Google Play services is installed and updated on the Android device.
+5. Confirm at least one Google account can be selected or added in Android system settings.
+6. Retry after updating Google Play services and restarting JoyTube.
+7. Confirm the installed APK's application ID is `com.aistudio.joytube.xkvpzr`.
+8. Confirm the Android OAuth client uses the SHA-1 fingerprint for the exact installed APK.
+9. Confirm the OAuth clients and the app's Web client ID are from the same Google Cloud project.
+10. In Supabase Auth's Google provider, list the Web client ID first and the Android client ID after it, comma-separated.
+11. Keep the Google OAuth client secret in Supabase; do not add it to the APK.
+12. Credential Manager errors occur before the app exchanges a token with Supabase, so changing database RLS will not fix that specific error.
+13. If an account picker appears but Supabase rejects the sign-in, check the provider client-ID list and Supabase Auth logs.
+14. Do not send Google passwords, ID tokens, or Supabase session tokens in screenshots or bug reports.
 
 #### I.4 Sign-in succeeds but profile or library sync fails
 
