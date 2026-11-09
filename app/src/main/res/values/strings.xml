@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">JoyTube</string>
+    <string name="tagline">Pure black. Pure focus.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_shorts">Shorts</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_account">Account</string>
+    <string name="search_placeholder">Search videos, Shorts, categories or web</string>
+    <string name="browser_search_placeholder">Search or enter address</string>
+    <string name="for_you">For you</string>
+    <string name="continue_watching">Continue watching</string>
+    <string name="now_playing">Now playing</string>
+    <string name="my_categories">My Categories</string>
+    <string name="create_category">Create Category</string>
+    <string name="imported_videos">Imported Videos</string>
+    <string name="favourites">Favourites</string>
+    <string name="downloads">Downloads</string>
+    <string name="history">History</string>
+    <string name="browser">Browser</string>
+    <string name="settings">Settings</string>
+</resources>

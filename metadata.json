@@ -1,0 +1,6 @@
+{
+  "name": "JoyTube",
+  "description": "Focused Android video platform with personal categories, media import, favourites, downloads, and an integrated ad-filtering mobile browser.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
