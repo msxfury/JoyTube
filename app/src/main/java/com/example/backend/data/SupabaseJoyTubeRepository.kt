@@ -10,6 +10,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.content.Context
+import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -19,6 +21,27 @@ import java.nio.charset.StandardCharsets
 class SupabaseJoyTubeRepository {
     private val http = OkHttpClient()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
+
+    fun saveLocalMediaPointer(context: Context, userId: String, assetId: String, uri: String, mimeType: String?, sizeBytes: Long?) {
+        val prefs = context.getSharedPreferences("joytube_local_media", Context.MODE_PRIVATE)
+        val key = localMediaKey(userId, assetId)
+        prefs.edit().putString(key, JSONObject().put("uri", uri).put("mime", mimeType).put("size", sizeBytes ?: 0L).toString()).apply()
+    }
+
+    fun restoreLocalMediaPointers(context: Context, session: SupabaseAuthSession, media: List<MediaItem>): List<MediaItem> {
+        val prefs = context.getSharedPreferences("joytube_local_media", Context.MODE_PRIVATE)
+        return media.map { item ->
+            val raw = prefs.getString(localMediaKey(session.userIdUuid, item.id), null) ?: return@map item
+            runCatching {
+                val saved = JSONObject(raw)
+                val uri = saved.getString("uri")
+                context.contentResolver.openFileDescriptor(Uri.parse(uri), "r")?.use { }
+                item.copy(localContentUri = uri, localMimeType = saved.optString("mime").ifBlank { null }, localSizeBytes = saved.optLong("size").takeIf { it > 0L })
+            }.getOrElse { item.copy(localContentUri = null) }
+        }
+    }
+
+    private fun localMediaKey(userId: String, assetId: String) = "${userId}_$assetId"
 
     fun loadLibrary(session: SupabaseAuthSession): LibrarySnapshot {
         val owner = session.userIdUuid
@@ -73,6 +96,7 @@ class SupabaseJoyTubeRepository {
                     visibility = if (row.optString("visibility") == "public") ContentVisibility.Public else ContentVisibility.Private,
                     artwork = com.example.ui.components.ArtworkPreset.SynthwaveStudio,
                     sourceDomain = "joytube.app", mediaIds = joins[row.getString("id")].orEmpty(),
+                    description = row.optString("description"),
                     isFavourite = row.optBoolean("is_favourite"), isBookmarked = row.optBoolean("is_favourite")
                 ))
             }
@@ -82,7 +106,7 @@ class SupabaseJoyTubeRepository {
 
     fun createCollection(session: SupabaseAuthSession, category: CategoryItem): CategoryItem {
         val body = JSONObject().put("owner_id", session.userIdUuid).put("name", category.name)
-            .put("description", "").put("visibility", visibility(category.visibility))
+            .put("description", category.description).put("visibility", visibility(category.visibility))
             .put("is_favourite", category.isFavourite)
         val rows = request("POST", "joytube_collections?select=id", session, body, "return=representation")
         val id = rows.optJSONObject(0)?.optString("id")
@@ -93,7 +117,8 @@ class SupabaseJoyTubeRepository {
 
     fun updateCollection(session: SupabaseAuthSession, category: CategoryItem) {
         request("PATCH", "joytube_collections?id=eq.${enc(category.id)}&owner_id=eq.${session.userIdUuid}", session,
-            JSONObject().put("name", category.name).put("visibility", visibility(category.visibility)).put("is_favourite", category.isFavourite), "return=minimal")
+            JSONObject().put("name", category.name).put("description", category.description)
+                .put("visibility", visibility(category.visibility)).put("is_favourite", category.isFavourite), "return=minimal")
     }
 
     fun deleteCollection(session: SupabaseAuthSession, id: String) {

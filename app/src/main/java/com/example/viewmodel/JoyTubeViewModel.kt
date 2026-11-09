@@ -4,11 +4,15 @@ import android.app.Activity
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.media.MediaMetadataRetriever
 import com.example.backend.auth.SupabaseAuthSession
 import com.example.backend.auth.SupabaseAuthRuntime
 import com.example.backend.contracts.*
 import com.example.backend.data.LocalDeviceDownloadCoordinator
 import com.example.backend.data.MediaFileSignatureValidator
+import com.example.backend.data.LocalMediaFileOperations
 import com.example.backend.data.SupabaseJoyTubeRepository
 import com.example.backend.playback.GlobalPlaybackLifecycleState
 import com.example.backend.playback.GlobalPlaybackSnapshot
@@ -167,7 +171,9 @@ class JoyTubeViewModel : ViewModel() {
                             username = refreshed.username,
                             displayName = refreshed.displayName,
                             email = refreshed.email,
-                            mediaList = cloudLibrary.getOrNull()?.media ?: it.mediaList,
+                            mediaList = cloudLibrary.getOrNull()?.let { library ->
+                                authManager.applicationContextOrNull()?.let { context -> cloudRepository.restoreLocalMediaPointers(context, refreshed, library.media) } ?: library.media
+                            } ?: it.mediaList,
                             categories = cloudLibrary.getOrNull()?.collections ?: it.categories,
                             importedItemsCount = cloudLibrary.getOrNull()?.media?.size ?: it.importedItemsCount,
                             glassDesignEnabled = cloudLibrary.getOrNull()?.theme != "normal",
@@ -495,7 +501,7 @@ class JoyTubeViewModel : ViewModel() {
     }
 
     // Categories Management (Part VI — Sections 19-23)
-    fun createCategory(name: String, visibility: ContentVisibility) {
+    fun createCategory(name: String, visibility: ContentVisibility, description: String = "") {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         val newCat = CategoryItem(
@@ -506,7 +512,8 @@ class JoyTubeViewModel : ViewModel() {
             visibility = visibility,
             artwork = ArtworkPreset.SynthwaveStudio,
             sourceDomain = "joytube.app",
-            mediaIds = emptyList()
+            mediaIds = emptyList(),
+            description = description.trim().take(500)
         )
         val session = _uiState.value.authSession
         if (session == null) {
@@ -855,14 +862,42 @@ class JoyTubeViewModel : ViewModel() {
     }
 
     fun startImportFromDeviceUri(uriString: String?, labelName: String = "") {
-        val resolvedUri = uriString?.takeIf { it.isNotBlank() } ?: "file:///device/imported_media_${System.currentTimeMillis()}.mp4"
-        val inferredTitle = labelName.trim().ifEmpty {
-            resolvedUri.substringAfterLast("/").substringBeforeLast(".")
+        if (uriString.isNullOrBlank()) {
+            _uiState.update { it.copy(feedbackMessage = "Choose a media file from your device first.") }
+            return
+        }
+        val uri = Uri.parse(uriString)
+        val appContext = authManager.applicationContextOrNull()
+        val metadata = appContext?.contentResolver?.let { resolver ->
+            var displayName = labelName
+            var size: Long? = null
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (nameIndex >= 0) displayName = cursor.getString(nameIndex).orEmpty().ifBlank { displayName }
+                    if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex)
+                }
+            }
+            Triple(displayName, size, resolver.getType(uri))
+        }
+        val durableName = metadata?.first?.takeIf { it.isNotBlank() } ?: labelName
+        val resolvedUri = uriString
+        val inferredTitle = durableName.trim().ifEmpty {
+            durableName.substringBeforeLast(".")
                 .replace(Regex("[-_]+"), " ")
                 .trim()
                 .replaceFirstChar { it.uppercase() }
                 .ifEmpty { "Device Media" }
         }
+        val durationSeconds = appContext?.let { context ->
+            runCatching {
+                MediaMetadataRetriever().use { retriever ->
+                    retriever.setDataSource(context, uri)
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.div(1000L)?.toInt()
+                }
+            }.getOrNull()
+        } ?: 0
         _uiState.update { state ->
             state.copy(
                 pendingImport = PendingImportDraft(
@@ -872,7 +907,7 @@ class JoyTubeViewModel : ViewModel() {
                     artwork = ArtworkPreset.CyberpunkCityscape,
                     customUri = uriString,
                     type = MediaType.Video,
-                    durationSeconds = 180,
+                    durationSeconds = durationSeconds,
                     visibility = ContentVisibility.Public,
                     targetCategoryId = state.categories.firstOrNull()?.id ?: ""
                 )
@@ -944,6 +979,30 @@ class JoyTubeViewModel : ViewModel() {
         val secs = draft.durationSeconds % 60
         val durStr = "%02d:%02d".format(mins, secs)
 
+        if (draft.customUri.isNullOrBlank()) {
+            _uiState.update { it.copy(feedbackMessage = "URL metadata import is not connected to a playable local file yet. Choose a device file to add playable media.") }
+            return
+        }
+
+        val localUri = draft.customUri
+        val localMetadata = localUri?.let { rawUri ->
+            val context = authManager.applicationContextOrNull()
+            val uri = Uri.parse(rawUri)
+            val resolver = context?.contentResolver
+            if (resolver == null) null else {
+                var size: Long? = null
+                var fileName = ""
+                resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        if (nameIndex >= 0) fileName = cursor.getString(nameIndex).orEmpty()
+                        if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex)
+                    }
+                }
+                Triple(fileName, size, resolver.getType(uri))
+            }
+        }
         val newItem = MediaItem(
             id = newId,
             title = cleanTitle,
@@ -956,7 +1015,10 @@ class JoyTubeViewModel : ViewModel() {
             categoryTag = "All",
             artwork = draft.artwork,
             sourceDomain = draft.sourceDomain.ifEmpty { "joytube.app" },
-            customThumbnailUri = draft.customUri
+            customThumbnailUri = null,
+            localContentUri = localUri,
+            localMimeType = localMetadata?.third,
+            localSizeBytes = localMetadata?.second
         )
 
         viewModelScope.launch {
@@ -966,6 +1028,9 @@ class JoyTubeViewModel : ViewModel() {
             return@launch
         }
         val persistedItem = newItem.copy(id = savedId.getOrThrow())
+        localUri?.let { uri -> authManager.applicationContextOrNull()?.let { context ->
+            cloudRepository.saveLocalMediaPointer(context, session.userIdUuid, persistedItem.id, uri, persistedItem.localMimeType, persistedItem.localSizeBytes)
+        } }
         runCatching {
             cloudRepository.recordRecentImport(session, persistedItem.id)
             _uiState.value.categories.firstOrNull { it.id == draft.targetCategoryId }?.let { cat ->
@@ -998,71 +1063,71 @@ class JoyTubeViewModel : ViewModel() {
     }
 
     fun startDownloadWithQuality(media: MediaItem, quality: String) {
-        val sizeStr = when (quality) {
-            "Original quality" -> "380 MB"
-            "1080p" -> "245 MB"
-            "720p" -> "115 MB"
-            else -> "64 MB"
+        val uriString = media.localContentUri
+        val parsed = uriString?.let(Uri::parse)
+        if (parsed == null || parsed.scheme != "content") {
+            _uiState.update { it.copy(activeOverlay = null, feedbackMessage = "Only media files selected from your device can be downloaded here. YouTube downloads are not supported.") }
+            return
         }
-        val newEntry = DownloadEntry(
-            id = "dl_${System.currentTimeMillis()}",
-            mediaId = media.id,
-            title = media.title,
-            quality = quality.substringBefore(" "),
-            sizeLabel = sizeStr,
-            status = DownloadStatus.Downloading,
-            progressPercent = 25,
-            artwork = media.artwork
-        )
-        _uiState.update { state ->
-            state.copy(
-                downloads = listOf(newEntry) + state.downloads,
-                activeOverlay = null,
-                feedbackMessage = "Downloading \"${media.title}\" ($quality)"
+        val appContext = authManager.applicationContextOrNull()
+        if (appContext == null) {
+            _uiState.update { it.copy(activeOverlay = null, feedbackMessage = "Device media access is unavailable. Reopen JoyTube and retry.") }
+            return
+        }
+        viewModelScope.launch {
+            val result = runCatching {
+                val destination = appContext.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES) ?: appContext.filesDir
+                LocalMediaFileOperations.copySelectedMedia(appContext, parsed, destination, media.title).file
+            }
+            val file = result.getOrNull()
+            val entry = DownloadEntry(
+                id = "dl_${System.currentTimeMillis()}", mediaId = media.id, title = media.title,
+                quality = "Original", sizeLabel = file?.let { android.text.format.Formatter.formatShortFileSize(appContext, it.length()) } ?: "",
+                status = if (file != null) DownloadStatus.Completed else DownloadStatus.Failed,
+                progressPercent = if (file != null) 100 else 0, artwork = media.artwork,
+                localFilePath = file?.absolutePath, sizeBytes = file?.length() ?: 0L
             )
-        }
-        val session = _uiState.value.authSession
-        if (session != null && media.isOwnedByCurrentUser) viewModelScope.launch {
-            runCatching { cloudRepository.recordDownload(session, media.id) }
-                .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Download count sync failed: ${error.message}") } }
+            _uiState.update { state -> state.copy(
+                downloads = listOf(entry) + state.downloads,
+                activeOverlay = null,
+                feedbackMessage = file?.let { "Saved local copy (${entry.sizeLabel})" } ?: "Download failed: ${result.exceptionOrNull()?.message}"
+            ) }
         }
     }
 
     fun togglePauseResumeDownload(downloadId: String) {
-        _uiState.update { state ->
-            val updated = state.downloads.map { dl ->
-                if (dl.id == downloadId) {
-                    when (dl.status) {
-                        DownloadStatus.Downloading -> dl.copy(status = DownloadStatus.Paused)
-                        DownloadStatus.Paused, DownloadStatus.Failed, DownloadStatus.Queued ->
-                            dl.copy(status = DownloadStatus.Downloading, progressPercent = (dl.progressPercent + 20).coerceAtMost(95))
-                        else -> dl
-                    }
-                } else dl
-            }
-            state.copy(downloads = updated)
-        }
+        _uiState.update { it.copy(feedbackMessage = "Downloads are copied in one operation; pause and resume are not available for local file copies.") }
     }
 
-    fun completeDownloadNow(downloadId: String) {
-        _uiState.update { state ->
-            state.copy(
-                downloads = state.downloads.map {
-                    if (it.id == downloadId) it.copy(status = DownloadStatus.Completed, progressPercent = 100) else it
-                },
-                feedbackMessage = "Download completed"
-            )
-        }
-    }
+    fun completeDownloadNow(downloadId: String) = Unit
 
     fun removeDownloadEntry(downloadId: String, isCancel: Boolean) {
         // Differentiates deleting a local downloaded file from deleting original imported media (Section 29)
+        val existing = _uiState.value.downloads.firstOrNull { it.id == downloadId }
+        existing?.localFilePath?.let { path -> runCatching { java.io.File(path).delete() } }
         _uiState.update { state ->
             state.copy(
                 downloads = state.downloads.filterNot { it.id == downloadId },
                 feedbackMessage = if (isCancel) "Download cancelled" else "Deleted local downloaded file (original media kept)"
             )
         }
+    }
+
+    fun playDownloadedFile(downloadId: String) {
+        val entry = _uiState.value.downloads.firstOrNull { it.id == downloadId }
+        val path = entry?.localFilePath?.let { java.io.File(it) }
+        if (entry == null || path == null || !path.isFile || path.length() == 0L) {
+            _uiState.update { it.copy(feedbackMessage = "The downloaded file is unavailable on this device.") }
+            return
+        }
+        val original = _uiState.value.mediaList.firstOrNull { it.id == entry.mediaId }
+        if (original == null) {
+            _uiState.update { it.copy(feedbackMessage = "The JoyTube library item for this local file is unavailable.") }
+            return
+        }
+        val localCopy = original.copy(localContentUri = Uri.fromFile(path).toString())
+        _uiState.update { state -> state.copy(mediaList = state.mediaList.map { if (it.id == original.id) localCopy else it }) }
+        navigateTo(JoyTubeRoute.VideoPlayer(entry.mediaId))
     }
 
     // Watch & Browser History (Section 30 & Screenshot 3)
@@ -1290,7 +1355,9 @@ class JoyTubeViewModel : ViewModel() {
                             username = session.username,
                             displayName = session.displayName,
                             email = session.email,
-                            mediaList = cloudLibrary.getOrNull()?.media ?: it.mediaList,
+                            mediaList = cloudLibrary.getOrNull()?.let { library ->
+                                authManager.applicationContextOrNull()?.let { context -> cloudRepository.restoreLocalMediaPointers(context, session, library.media) } ?: library.media
+                            } ?: it.mediaList,
                             categories = cloudLibrary.getOrNull()?.collections ?: it.categories,
                             importedItemsCount = cloudLibrary.getOrNull()?.media?.size ?: 0,
                             glassDesignEnabled = cloudLibrary.getOrNull()?.theme != "normal",

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.*
@@ -42,10 +43,17 @@ fun ImportMediaScreen(
     viewModel: JoyTubeViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val mediaPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
             viewModel.startImportFromDeviceUri(uri.toString())
         }
     }
@@ -131,11 +139,9 @@ fun ImportMediaScreen(
                         text = "Choose file",
                         onClick = {
                             try {
-                                mediaPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-                                )
+                                mediaPickerLauncher.launch(arrayOf("video/*", "audio/*", "image/*"))
                             } catch (_: Exception) {
-                                viewModel.startImportFromDeviceUri(null)
+                                viewModel.showFeedback("Could not open the device file picker. Please try again.")
                             }
                         },
                         modifier = Modifier.testTag("choose_file_button")
@@ -804,7 +810,7 @@ fun DownloadsScreen(
                 items(filteredDownloads, key = { it.id }) { dl ->
                     DownloadItemCard(
                         entry = dl,
-                        onPlayOffline = { viewModel.navigateTo(JoyTubeRoute.VideoPlayer(dl.mediaId)) },
+                        onPlayOffline = { viewModel.playDownloadedFile(dl.id) },
                         onTogglePauseResume = { viewModel.togglePauseResumeDownload(dl.id) },
                         onCancelOrDelete = { isCancel -> viewModel.removeDownloadEntry(dl.id, isCancel) }
                     )
@@ -813,8 +819,13 @@ fun DownloadsScreen(
         }
 
         // Bottom Storage Used Indicator
-        val usedMb = uiState.downloads.size * 120
-        val usedFraction = (usedMb / 10240f).coerceIn(0f, 1f)
+        val downloadedBytes = uiState.downloads
+            .filter { it.status == DownloadStatus.Completed }
+            .sumOf { it.sizeBytes }
+        val usedLabel = android.text.format.Formatter.formatShortFileSize(
+            androidx.compose.ui.platform.LocalContext.current,
+            downloadedBytes
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -827,25 +838,11 @@ fun DownloadsScreen(
             ) {
                 Text(text = "Storage used", style = JoyTubeTypeScale.Metadata)
                 Text(
-                    text = if (usedMb == 0) "0 MB of 10 GB" else "$usedMb MB of 10 GB",
+                    text = "$usedLabel used on this device",
                     style = JoyTubeTypeScale.Label
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(JoyTubeColors.BorderStandard)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(usedFraction)
-                        .fillMaxHeight()
-                        .background(JoyTubeColors.TextSecondary)
-                )
-            }
         }
     }
 }

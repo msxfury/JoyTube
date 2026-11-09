@@ -95,6 +95,10 @@ data class MediaItem(
     val artwork: ArtworkPreset,
     val sourceDomain: String? = null,
     val customThumbnailUri: String? = null,
+    val localContentUri: String? = null,
+    val collectionDescription: String? = null,
+    val localMimeType: String? = null,
+    val localSizeBytes: Long? = null,
     val isFavourite: Boolean = false,
     val isBookmarked: Boolean = false,
     val watchProgress: Float = 0f,
@@ -111,6 +115,7 @@ data class CategoryItem(
     val artwork: ArtworkPreset,
     val sourceDomain: String? = null,
     val mediaIds: List<String>,
+    val description: String = "",
     val isFavourite: Boolean = false,
     val isBookmarked: Boolean = false
 )
@@ -132,7 +137,9 @@ data class DownloadEntry(
     val sizeLabel: String,
     val status: DownloadStatus,
     val progressPercent: Int,
-    val artwork: ArtworkPreset
+    val artwork: ArtworkPreset,
+    val localFilePath: String? = null,
+    val sizeBytes: Long = 0L
 )
 
 enum class HistoryBucket(val label: String) {

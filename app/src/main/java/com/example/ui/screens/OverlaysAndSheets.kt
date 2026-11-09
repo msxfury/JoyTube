@@ -353,6 +353,7 @@ fun JoyTubeOverlayHost(
 
                 is ActiveOverlay.CreateCategoryModal -> {
                     var categoryName by remember { mutableStateOf("") }
+                    var description by remember { mutableStateOf("") }
                     var visibility by remember { mutableStateOf(ContentVisibility.Public) }
                     var nameError by remember { mutableStateOf<String?>(null) }
 
@@ -370,6 +371,12 @@ fun JoyTubeOverlayHost(
                         placeholder = "Enter category name",
                         errorMessage = nameError,
                         modifier = Modifier.testTag("create_category_name_input")
+                    )
+                    Text(text = "DESCRIPTION (OPTIONAL)", style = JoyTubeTypeScale.Microcopy)
+                    JoyTubeTextInput(
+                        value = description,
+                        onValueChange = { description = it.take(500) },
+                        placeholder = "Describe this collection"
                     )
 
                     Text(
@@ -404,7 +411,7 @@ fun JoyTubeOverlayHost(
                             if (categoryName.isBlank()) {
                                 nameError = "Please enter a category name."
                             } else {
-                                viewModel.createCategory(categoryName, visibility)
+                                viewModel.createCategory(categoryName, visibility, description)
                             }
                         }
                     )

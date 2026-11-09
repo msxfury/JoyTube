@@ -80,10 +80,10 @@ This table describes source-level behavior, not a production guarantee. A screen
 | JoyTube profile | Supabase Auth identity and profile upsert operations | **Partial.** Depends on provider setup, deployed schema, and RLS. |
 | Preferences | Theme and JSON setting reads/writes through the Supabase repository | **Partial.** A displayed setting may not have a complete runtime effect. |
 | Collections / favourites | Repository operations for collections, visibility, membership, and favourite flags | **Partial.** Validate each UI path against the deployed project. |
-| Imported media | Import screens and metadata persistence for user-owned records | **Metadata flow only.** No complete ingest, durable file association, or playable-media pipeline. YouTube origins are rejected by policy code. |
-| Device picker | Android photo/video picker can supply a URI to an import draft | **Partial.** Current flow does not copy the file to app storage or make it a persistent playable item. |
-| Download controls | Quality dialog, queue/status UI, pause/resume affordances | **Prototype UI.** Current action creates in-memory progress state; it does not write an MP4/MKV/audio file. |
-| Device-local download boundary | Local download record model and source restrictions | **Scaffold only.** No production transfer or persistent download manager is implemented. |
+| Imported media | Android document picker retains access to a selected device URI; item metadata syncs to JoyTube | **Implemented for selected local files.** The URI and access grant remain device-local; they are not synced to another device. YouTube origins are rejected. |
+| Local playback | Media3 ExoPlayer handles selected local content URIs; YouTube results use the embedded player | **Implemented for formats supported by the installed Media3 decoders.** Availability depends on the selected file and retained Android URI grant. |
+| Download controls | Copies a selected local document into app-managed Movies storage and verifies the output exists and is non-empty | **Implemented for selected local files.** No arbitrary URL or YouTube stream downloads; pause/resume and background transfer are not supported. |
+| Device-local download boundary | Downloaded bytes are stored in app-managed device storage, with local path and exact byte count in app state | **Device-local.** Download list state currently resets when the process restarts; no cloud media upload occurs. |
 | Ad blocking | Browser/settings controls expose selected preferences | **Not system-wide.** Cannot block ads in every app or remove ads from YouTube's embedded player. |
 | Rust API | Axum proxy with table allowlist and caller-token forwarding | **Standalone scaffold.** Not deployed and not called by Android. |
 | Supabase data security | Migration includes RLS policies on the defined public tables | **Schema included.** Must be applied and independently checked in the target project. |
@@ -174,9 +174,21 @@ The migration at `supabase/migrations/20261106000001_joytube_schema_and_rls.sql`
 
 RLS is enabled for all six `public` tables. Update policies use both `USING` and `WITH CHECK`; collection membership policies verify referenced rows. These policies apply only after the migration is applied and API roles have access. Verify the deployed project instead of assuming its live state matches this file.
 
-The schema stores metadata, not media bytes. The app's import screen can create metadata drafts and the repository stores metadata records; current code does not implement robust ingestion, transcoding, durable URI management, or complete local playback association. `MediaFileSignatureValidator` and `LocalDeviceDownloadCoordinator` are policy/model scaffolds, not production import/download pipelines. The validator rejects YouTube audiovisual sources.
+The schema stores metadata, not media bytes or local content URIs. Selected document URI pointers are stored in app-private local preferences and joined to cloud item metadata after sign-in; they are meaningful only on the device that granted access. Local files are played with Media3 when supported, and copies made from selected local documents remain in app-managed device storage. URL-based media ingestion, transcoding, background transfer, pause/resume, and cross-device local-file sync are not implemented. YouTube audiovisual sources remain excluded from import/download.
 
 ## Build the Android app
+
+### Real local-media verification
+
+The device instrumentation suite exercises the production `LocalMediaFileOperations` code through a test `content://` provider. It generates a 64 MiB fixture at runtime and checks the copied file's exact length and SHA-256, copies a real two-second H.264/AAC MP4 and waits for Media3 to reach `STATE_READY` with a positive duration, and verifies that empty, forged-signature, and unsupported MIME inputs fail rather than being reported as completed downloads. The large binary fixture is generated in the emulator cache so it does not add 64 MiB to the repository.
+
+Run both the JVM and connected-device suites with:
+
+```bash
+./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest
+```
+
+The connected suite requires an Android emulator or device with enough free storage for temporary 64 MiB source and output files. Passing it verifies local file copying and local MP4 decoder preparation on that test environment. It does not verify picker behavior across every document provider, device codec support for every media format, Google OAuth, live Supabase RLS, or YouTube embed availability.
 
 ### Requirements
 
@@ -1140,18 +1152,16 @@ This appendix summarizes the migration in this repository. It does not certify a
 
 #### I.7 Import and download controls appear to work but file is missing
 
-1. The current download UI does not create a real media file.
-2. Its progress state is held in memory.
-3. The local download coordinator is a model and policy boundary, not a transfer implementation.
-4. The import flow can save metadata without a persistent playable file.
-5. A selected document URI is not automatically copied into durable app storage.
+1. Downloads copy the selected local document into app-managed Movies storage; the app does not download YouTube streams or arbitrary remote URLs.
+2. The current copy operation has no pause/resume or persistent background worker.
+3. Download list entries are currently process-local even though the copied file remains in app storage.
+4. An imported file can become inaccessible if its original provider URI grant is revoked or the document is deleted.
+5. URL metadata import is not a playable-media import path.
 6. Do not treat a database download count as proof that bytes were saved.
 7. Do not use YouTube-origin sources for downloads.
-8. A real first-party downloader would require an authorized source and an explicit transfer implementation.
-9. Any future download implementation needs cancellation and failure handling.
-10. Any future download implementation needs safe destination selection and storage management.
-11. Any future download implementation needs file integrity and MIME checks.
-12. Any future download implementation needs clear user-visible completion semantics.
+8. The local copy is complete only after a nonempty output file is verified.
+9. Downloads are app-managed local files and are deleted when their entry is removed.
+10. A future remote transfer feature needs an authorized source, cancellation, retry, safe destination selection, integrity checks, and persistent job state.
 
 #### I.8 Rust service does not start
 

@@ -57,6 +57,7 @@ class SupabaseGoogleAuthManager {
     }
 
     fun currentSession(): SupabaseAuthSession? = activeSession
+    fun applicationContextOrNull(): Context? = appContext
 
     suspend fun signInWithGoogle(activity: Activity): SupabaseAuthSession = withContext(Dispatchers.IO) {
         val context = appContext ?: activity.applicationContext.also { appContext = it }

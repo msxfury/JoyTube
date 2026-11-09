@@ -23,6 +23,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import androidx.media3.common.MediaItem as ExoMediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.example.model.*
 import com.example.ui.components.*
 import com.example.ui.icons.JoyTubeIconType
@@ -88,6 +93,20 @@ fun VideoPlayerScreen(
         ?.providerId
         ?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
     var isFullscreenMode by remember { mutableStateOf(false) }
+    val localContentUri = currentMedia.localContentUri
+    val context = LocalContext.current
+    val localPlayer = remember(localContentUri) {
+        localContentUri?.let {
+            ExoPlayer.Builder(context).build().apply {
+                setMediaItem(ExoMediaItem.fromUri(it))
+                prepare()
+                playWhenReady = true
+            }
+        }
+    }
+    DisposableEffect(localPlayer) {
+        onDispose { localPlayer?.release() }
+    }
     val totalSec = currentMedia.durationSeconds.coerceAtLeast(1)
     val elapsedSec = uiState.currentPositionSec.coerceIn(0, totalSec)
     val progress = (elapsedSec.toFloat() / totalSec.toFloat()).coerceIn(0f, 1f)
@@ -103,6 +122,11 @@ fun VideoPlayerScreen(
                 YouTubeEmbedPlayer(
                     videoId = embeddedYouTubeVideoId,
                     captionsEnabled = uiState.subtitlesSetting != "Off",
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (localPlayer != null) {
+                AndroidView(
+                    factory = { viewContext -> PlayerView(viewContext).apply { player = localPlayer; useController = true } },
                     modifier = Modifier.fillMaxSize()
                 )
             } else JoyTubeMediaThumbnail(
@@ -183,6 +207,14 @@ fun VideoPlayerScreen(
                             .aspectRatio(16f / 10f)
                             .clip(JoyTubeRadius.ContentCard)
                             .border(1.dp, JoyTubeColors.BorderStandard, JoyTubeRadius.ContentCard)
+                    )
+                } else if (localPlayer != null) {
+                    AndroidView(
+                        factory = { viewContext -> PlayerView(viewContext).apply { player = localPlayer; useController = true } },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 10f)
+                            .clip(JoyTubeRadius.ContentCard)
                     )
                 } else JoyTubeMediaThumbnail(
                     preset = currentMedia.artwork,
