@@ -19,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -66,17 +65,25 @@ fun JoyTubeAppRoot(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isDockScrollCompacted by remember { mutableStateOf(false) }
-    var dismissedUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val updatePreferences = remember(context) {
+        context.getSharedPreferences(APP_UPDATE_PREFERENCES, android.content.Context.MODE_PRIVATE)
+    }
+    var dismissedUpdateVersion by remember(updatePreferences) {
+        mutableStateOf(updatePreferences.getString(DISMISSED_UPDATE_VERSION_KEY, null))
+    }
+    val dismissUpdate: (String) -> Unit = { version ->
+        dismissedUpdateVersion = version
+        updatePreferences.edit().putString(DISMISSED_UPDATE_VERSION_KEY, version).apply()
+    }
 
     LaunchedEffect(uiState.isSignedIn) {
         if (!uiState.isSignedIn) {
-            dismissedUpdateVersion = null
             viewModel.clearAvailableAppUpdate()
         } else {
             while (true) {
                 viewModel.checkForAppUpdate()
-                delay(6 * 60 * 60 * 1000L)
+                delay(APP_UPDATE_CHECK_INTERVAL_MS)
             }
         }
     }
@@ -238,6 +245,14 @@ fun JoyTubeAppRoot(
                     SettingsScreen(uiState = uiState, viewModel = viewModel)
                 }
 
+                JoyTubeRoute.AboutJoyTube -> {
+                    AboutJoyTubeScreen(viewModel = viewModel)
+                }
+
+                JoyTubeRoute.TermsAndPrivacy -> {
+                    TermsAndPrivacyScreen(viewModel = viewModel)
+                }
+
                 JoyTubeRoute.Profile -> {
                     ProfileScreen(uiState = uiState, viewModel = viewModel)
                 }
@@ -310,13 +325,13 @@ fun JoyTubeAppRoot(
             val releaseUpdate = uiState.updateAvailable
             if (uiState.isSignedIn && releaseUpdate != null && dismissedUpdateVersion != releaseUpdate.version) {
                 AlertDialog(
-                    onDismissRequest = { dismissedUpdateVersion = releaseUpdate.version },
+                    onDismissRequest = { dismissUpdate(releaseUpdate.version) },
                     title = { Text("New Update Available!") },
                     text = { Text("JoyTube v${releaseUpdate.version}") },
                     confirmButton = {
                         Button(
                             onClick = {
-                                dismissedUpdateVersion = releaseUpdate.version
+                                dismissUpdate(releaseUpdate.version)
                                 runCatching {
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(releaseUpdate.apkUrl)))
                                 }
@@ -332,7 +347,7 @@ fun JoyTubeAppRoot(
                     },
                     dismissButton = {
                         Button(
-                            onClick = { dismissedUpdateVersion = releaseUpdate.version },
+                            onClick = { dismissUpdate(releaseUpdate.version) },
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = JoyTubeColors.SurfaceElevated,
@@ -348,3 +363,7 @@ fun JoyTubeAppRoot(
         }
     }
 }
+
+private const val APP_UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000L
+private const val APP_UPDATE_PREFERENCES = "joytube_app_updates"
+private const val DISMISSED_UPDATE_VERSION_KEY = "dismissed_version"

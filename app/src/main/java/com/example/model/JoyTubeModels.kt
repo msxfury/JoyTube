@@ -47,6 +47,10 @@ sealed class JoyTubeRoute {
     @Immutable
     object Settings : JoyTubeRoute()
     @Immutable
+    object AboutJoyTube : JoyTubeRoute()
+    @Immutable
+    object TermsAndPrivacy : JoyTubeRoute()
+    @Immutable
     object Profile : JoyTubeRoute()
     @Immutable
     data class AuthFlow(val step: AuthStep = AuthStep.Splash) : JoyTubeRoute()
@@ -95,6 +99,7 @@ data class MediaItem(
     val artwork: ArtworkPreset,
     val sourceDomain: String? = null,
     val customThumbnailUri: String? = null,
+    val remoteThumbnailUrl: String? = null,
     val localContentUri: String? = null,
     val collectionDescription: String? = null,
     val localMimeType: String? = null,
