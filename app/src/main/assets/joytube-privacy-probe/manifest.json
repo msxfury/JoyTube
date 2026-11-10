@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "JoyTube GeckoView Blocking Probe",
+  "version": "1.0",
+  "browser_specific_settings": {
+    "gecko": { "id": "joytube-geckoview-probe@joytube.local" }
+  },
+  "background": { "scripts": ["background.js"] },
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "http://127.0.0.1/*"
+  ]
+}

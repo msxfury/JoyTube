@@ -41,6 +41,7 @@ fun BrowserHomeScreen(
     viewModel: JoyTubeViewModel,
     modifier: Modifier = Modifier
 ) {
+    val browserController = remember { GeckoBrowserController() }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -119,6 +120,9 @@ fun BrowserHomeScreen(
         if (uiState.activeBrowserUrl != null) {
             GeckoBrowserView(
                 url = uiState.activeBrowserUrl,
+                controller = browserController,
+                onLocationChanged = viewModel::updateBrowserLocation,
+                privacyFilteringEnabled = uiState.adBlockEnabled,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -186,7 +190,9 @@ fun BrowserHomeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             BrowserToolbarIcon(icon = JoyTubeIconType.ArrowBack) {
-                if (uiState.activeBrowserUrl != null) {
+                if (uiState.activeBrowserUrl != null && browserController.canGoBack) {
+                    browserController.goBack()
+                } else if (uiState.activeBrowserUrl != null) {
                     viewModel.updateBrowserAddressInput("")
                     viewModel.navigateBack()
                 } else {
@@ -194,10 +200,10 @@ fun BrowserHomeScreen(
                 }
             }
             BrowserToolbarIcon(icon = JoyTubeIconType.ArrowForward) {
-                viewModel.openBrowserUrlOrSearch("https://digitaliaworks.com")
+                browserController.goForward()
             }
             BrowserToolbarIcon(icon = JoyTubeIconType.Refresh) {
-                viewModel.showFeedback("Page refreshed")
+                browserController.reload()
             }
             BrowserToolbarIcon(icon = JoyTubeIconType.NavHome) {
                 viewModel.updateBrowserAddressInput("")
@@ -405,7 +411,7 @@ fun AdBlockerSettingsScreen(
             .background(JoyTubeColors.Background)
     ) {
         JoyTubeSecondaryTopBar(
-            title = "Ad blocking",
+            title = "Privacy filtering",
             onBackClick = { viewModel.navigateBack() }
         )
 
@@ -434,7 +440,7 @@ fun AdBlockerSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Ad blocking",
+                            text = "Privacy filtering",
                             style = JoyTubeTypeScale.SectionHeading
                         )
                         Text(
@@ -446,24 +452,11 @@ fun AdBlockerSettingsScreen(
                     }
 
                     AdBlockToggleRow(
-                        title = "Block advertising requests",
-                        subtitle = "Filter a small list of known ad hosts in this browser only.",
-                        checked = uiState.blockAdRequests,
-                        onToggle = { viewModel.toggleAdBlockSetting("ads") }
-                    )
-
-                    AdBlockToggleRow(
-                        title = "Block pop-ups",
-                        subtitle = "Prevent supported pop-up windows.",
-                        checked = uiState.blockPopups,
-                        onToggle = { viewModel.toggleAdBlockSetting("popups") }
-                    )
-
-                    AdBlockToggleRow(
-                        title = "Hide cookie banners",
-                        subtitle = "Cookie banner removal is not implemented in this prototype.",
-                        checked = uiState.hideCookieBanners,
-                        onToggle = { viewModel.toggleAdBlockSetting("cookies") }
+                        title = "Filter trackers in GeckoView",
+                        subtitle = "Use Brave's Rust filter engine with the EasyPrivacy list.",
+                        checked = uiState.adBlockEnabled,
+                        onToggle = { viewModel.toggleAdBlockSetting("master") },
+                        modifier = Modifier.testTag("privacy_filter_master_switch")
                     )
 
                     // Media compatibility row ("Protected")
@@ -475,12 +468,12 @@ fun AdBlockerSettingsScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Media compatibility",
+                                text = "YouTube compatibility",
                                     style = JoyTubeTypeScale.CardTitle
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Avoid blocking essential video and audio requests.",
+                                text = "YouTube domains and requests initiated by YouTube pages bypass filtering.",
                                     style = JoyTubeTypeScale.Metadata
                                 )
                             }
@@ -491,7 +484,7 @@ fun AdBlockerSettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "The filter is best-effort. YouTube ads are intentionally left to YouTube's player; this setting cannot unlock Premium or paid features.",
+                            text = "This filters matching network requests in GeckoView only. It does not modify YouTube playback or YouTube advertising.",
                             style = JoyTubeTypeScale.Microcopy
                         )
                     }
@@ -506,10 +499,11 @@ private fun AdBlockToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onToggle() }
             .padding(vertical = 2.dp),

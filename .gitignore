@@ -22,3 +22,4 @@ debug.keystore
 /my-upload-key.jks
 /my-upload-key-v2.jks
 /keystore.properties
+/privacy-filter/target

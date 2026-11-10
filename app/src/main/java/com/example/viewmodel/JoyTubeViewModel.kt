@@ -1,6 +1,7 @@
 package com.example.viewmodel
 
 import android.app.Activity
+import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -121,6 +122,9 @@ class JoyTubeViewModel : ViewModel() {
     val localDownloadCoordinator = LocalDeviceDownloadCoordinator()
     val playbackCoordinator = PlaybackCoordinator()
     private val releaseUpdateChecker = GitHubReleaseUpdateChecker()
+    private val privacyFilterPreferences = authManager.applicationContextOrNull()
+        ?.getSharedPreferences("joytube_privacy_filter", Context.MODE_PRIVATE)
+    private val initialPrivacyFilterEnabled = privacyFilterPreferences?.getBoolean("enabled", false) ?: false
     private var updateCheckInProgress = false
 
     val videoProvider = VideoProvider(quotaManager)
@@ -146,6 +150,7 @@ class JoyTubeViewModel : ViewModel() {
             email = restoredAuthSession?.email.orEmpty(),
             isSignedIn = restoredAuthSession != null,
             authSession = restoredAuthSession,
+            adBlockEnabled = initialPrivacyFilterEnabled,
             quotaSnapshot = quotaManager.snapshot(),
             globalPlayback = playbackCoordinator.snapshot()
         )
@@ -170,6 +175,10 @@ class JoyTubeViewModel : ViewModel() {
                     }
                 } else {
                     val cloudLibrary = runCatching { cloudRepository.loadLibrary(refreshed) }
+                    val privacyFilterEnabled = restorePrivacyFilterSetting(
+                        cloudLibrary.getOrNull()?.settings,
+                        _uiState.value.adBlockEnabled
+                    )
                     _uiState.update {
                         it.copy(
                             isSignedIn = true,
@@ -183,6 +192,7 @@ class JoyTubeViewModel : ViewModel() {
                             categories = cloudLibrary.getOrNull()?.collections ?: it.categories,
                             importedItemsCount = cloudLibrary.getOrNull()?.media?.size ?: it.importedItemsCount,
                             glassDesignEnabled = cloudLibrary.getOrNull()?.theme != "normal",
+                            adBlockEnabled = privacyFilterEnabled,
                             blockAdRequests = cloudLibrary.getOrNull()?.settings?.optBoolean("blockAdRequests", it.blockAdRequests) ?: it.blockAdRequests,
                             blockPopups = cloudLibrary.getOrNull()?.settings?.optBoolean("blockPopups", it.blockPopups) ?: it.blockPopups,
                             hideCookieBanners = cloudLibrary.getOrNull()?.settings?.optBoolean("hideCookieBanners", it.hideCookieBanners) ?: it.hideCookieBanners,
@@ -1227,6 +1237,19 @@ class JoyTubeViewModel : ViewModel() {
         _uiState.update { it.copy(browserAddressInput = input) }
     }
 
+    fun updateBrowserLocation(url: String) {
+        if (!url.startsWith("https://") && !url.startsWith("http://")) return
+        val domain = url.removePrefix("https://").removePrefix("http://").substringBefore("/")
+        _uiState.update { state ->
+            state.copy(
+                browserAddressInput = url,
+                browserTabs = state.browserTabs.map { tab ->
+                    if (tab.id == state.activeBrowserTabId) tab.copy(url = url, domain = domain) else tab
+                }
+            )
+        }
+    }
+
     fun openBrowserUrlOrSearch(queryOrUrl: String) {
         val trimmed = queryOrUrl.trim()
         if (trimmed.isEmpty()) return
@@ -1287,6 +1310,7 @@ class JoyTubeViewModel : ViewModel() {
             state.copy(
                 activeBrowserTabId = tabId,
                 browserAddressInput = tab?.url ?: "",
+                activeBrowserUrl = tab?.url,
                 currentRoute = JoyTubeRoute.BrowserHome
             )
         }
@@ -1316,15 +1340,24 @@ class JoyTubeViewModel : ViewModel() {
     fun toggleAdBlockSetting(settingKey: String) {
         _uiState.update { state ->
             val next = when (settingKey) {
-                "ads" -> state.copy(blockAdRequests = !state.blockAdRequests)
+                "master", "ads" -> {
+                    val enabled = !state.adBlockEnabled
+                    privacyFilterPreferences?.edit()?.putBoolean("enabled", enabled)?.apply()
+                    state.copy(adBlockEnabled = enabled)
+                }
                 "popups" -> state.copy(blockPopups = !state.blockPopups)
                 "cookies" -> state.copy(hideCookieBanners = !state.hideCookieBanners)
                 else -> state
             }
-            val anyActive = next.blockAdRequests || next.blockPopups || next.hideCookieBanners
-            next.copy(adBlockEnabled = anyActive)
+            next
         }
         saveCloudSettings()
+    }
+
+    private fun restorePrivacyFilterSetting(settings: org.json.JSONObject?, fallback: Boolean): Boolean {
+        val enabled = settings?.optBoolean("privacyFilteringEnabled", fallback) ?: fallback
+        privacyFilterPreferences?.edit()?.putBoolean("enabled", enabled)?.apply()
+        return enabled
     }
 
     // JoyTube profile controls
@@ -1350,6 +1383,7 @@ class JoyTubeViewModel : ViewModel() {
         val session = _uiState.value.authSession ?: return
         val state = _uiState.value
         val settings = org.json.JSONObject()
+            .put("privacyFilteringEnabled", state.adBlockEnabled)
             .put("blockAdRequests", state.blockAdRequests)
             .put("blockPopups", state.blockPopups)
             .put("hideCookieBanners", state.hideCookieBanners)
@@ -1369,6 +1403,10 @@ class JoyTubeViewModel : ViewModel() {
             runCatching { authManager.signInWithGoogle(activity) }
                 .onSuccess { session ->
                     val cloudLibrary = runCatching { cloudRepository.loadLibrary(session) }
+                    val privacyFilterEnabled = restorePrivacyFilterSetting(
+                        cloudLibrary.getOrNull()?.settings,
+                        _uiState.value.adBlockEnabled
+                    )
                     _uiState.update {
                         it.copy(
                             isSignedIn = true,
@@ -1382,6 +1420,7 @@ class JoyTubeViewModel : ViewModel() {
                             categories = cloudLibrary.getOrNull()?.collections ?: it.categories,
                             importedItemsCount = cloudLibrary.getOrNull()?.media?.size ?: 0,
                             glassDesignEnabled = cloudLibrary.getOrNull()?.theme != "normal",
+                            adBlockEnabled = privacyFilterEnabled,
                             blockAdRequests = cloudLibrary.getOrNull()?.settings?.optBoolean("blockAdRequests", it.blockAdRequests) ?: it.blockAdRequests,
                             blockPopups = cloudLibrary.getOrNull()?.settings?.optBoolean("blockPopups", it.blockPopups) ?: it.blockPopups,
                             hideCookieBanners = cloudLibrary.getOrNull()?.settings?.optBoolean("hideCookieBanners", it.hideCookieBanners) ?: it.hideCookieBanners,

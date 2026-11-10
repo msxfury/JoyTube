@@ -20,10 +20,11 @@ android {
 
   defaultConfig {
     applicationId = "com.aistudio.joytube.xkvpzr"
-    minSdk = 24
+    // GeckoView 145 requires Android 8.0 (API 26).
+    minSdk = 26
     targetSdk = 36
-    versionCode = 3
-    versionName = "1.0.2"
+    versionCode = 4
+    versionName = "1.0.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -32,6 +33,17 @@ android {
     buildConfigField("String", "SUPABASE_URL", "\"https://luqykugkerexabnxjyiz.supabase.co\"")
     buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"sb_publishable_FoNdfvogRf6U2zA4gK0I8g_p0ksMEQu\"")
     buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"785225386843-kmlmvi0seghe2toai5fmfipnv8e2kr4n.apps.googleusercontent.com\"")
+  }
+
+  // GeckoView ships a large native engine per CPU architecture. Publish device-specific APKs
+  // instead of one universal APK containing all three engines; keep ARM64, ARMv7 and x86_64.
+  splits {
+    abi {
+      isEnable = true
+      reset()
+      include("arm64-v8a", "armeabi-v7a", "x86_64")
+      isUniversalApk = false
+    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
