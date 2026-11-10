@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.model.CategoryItem
 import com.example.model.MediaItem
 import com.example.model.PrimaryTab
@@ -100,6 +102,7 @@ private fun Modifier.joyTubeTouchBounce(
 fun JoyTubeAccountAvatarBadge(
     initial: String = "D",
     size: Dp = 38.dp,
+    imageUrl: String? = null,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -150,12 +153,21 @@ fun JoyTubeAccountAvatarBadge(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = initial.take(1).uppercase(),
-            style = JoyTubeTypeScale.SectionHeading.copy(
-                color = Color(0xFFEAECEF)
+        if (!imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "Google profile photo",
+                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                contentScale = ContentScale.Crop
             )
-        )
+        } else {
+            Text(
+                text = initial.take(1).uppercase(),
+                style = JoyTubeTypeScale.SectionHeading.copy(
+                    color = Color(0xFFEAECEF)
+                )
+            )
+        }
     }
 }
 
@@ -1517,7 +1529,7 @@ fun OutlinedVideoCard(
     ) {
         JoyTubeMediaThumbnail(
             preset = media.artwork,
-            customUri = media.customThumbnailUri,
+            customUri = media.customThumbnailUri ?: media.remoteThumbnailUrl,
             sourceBadge = media.sourceDomain,
             durationBadge = media.durationLabel,
             showBookmark = true,
@@ -1586,7 +1598,7 @@ fun CompactContinueWatchingCard(
     ) {
         JoyTubeMediaThumbnail(
             preset = media.artwork,
-            customUri = media.customThumbnailUri,
+            customUri = media.customThumbnailUri ?: media.remoteThumbnailUrl,
             showBookmark = true,
             isBookmarked = media.isBookmarked,
             onBookmarkClick = onBookmarkClick,
@@ -1637,7 +1649,7 @@ fun CompactMediaRowItem(
     ) {
         JoyTubeMediaThumbnail(
             preset = media.artwork,
-            customUri = media.customThumbnailUri,
+            customUri = media.customThumbnailUri ?: media.remoteThumbnailUrl,
             modifier = Modifier
                 .width(106.dp)
                 .height(62.dp)

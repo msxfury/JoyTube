@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,10 +67,10 @@ fun BrowserHomeScreen(
                 ) {
                     JoyTubeSvgIcon(type = JoyTubeIconType.ArrowBack, size = 19.dp)
                 }
-                Text(
-                    text = "Browser",
-                    style = JoyTubeTypeScale.PageTitle
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    JoyTubeSvgIcon(type = JoyTubeIconType.BrandLogoLeftTriangle, size = 18.dp)
+                    Text(text = "JoyTube", style = JoyTubeTypeScale.PageTitle)
+                }
             }
 
             Row(
@@ -115,15 +116,23 @@ fun BrowserHomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(
+        if (uiState.activeBrowserUrl != null) {
+            GeckoBrowserView(
+                url = uiState.activeBrowserUrl,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp)
+                    .clip(JoyTubeRadius.ThumbnailInner)
+            )
+        } else LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            if (uiState.activeBrowserUrl == null) {
-                // Quick Access 3-Column Outlined Cards: Web | History | Downloads (Screenshot 1)
+                // Quick Access 3-Column Outlined Cards: YouTube | History | Downloads
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
@@ -136,8 +145,8 @@ fun BrowserHomeScreen(
                         ) {
                             BrowserQuickAccessCard(
                                 icon = JoyTubeIconType.Globe,
-                                label = "Web",
-                                onClick = { viewModel.openBrowserUrlOrSearch("https://digitaliaworks.com") },
+                                label = "YouTube",
+                                onClick = { viewModel.openBrowserUrlOrSearch("https://m.youtube.com") },
                                 modifier = Modifier.weight(1f)
                             )
                             BrowserQuickAccessCard(
@@ -159,104 +168,6 @@ fun BrowserHomeScreen(
                     }
                 }
 
-                // Ad blocking summary row (Screenshot 1)
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(JoyTubeRadius.ContentCard)
-                            .clickable { viewModel.navigateTo(JoyTubeRoute.AdBlockerSettings) }
-                            .padding(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Ad blocking",
-                                style = JoyTubeTypeScale.SectionHeading
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                JoyTubeSvgIcon(
-                                    type = JoyTubeIconType.ShieldCheck,
-                                    size = 15.dp,
-                                    tint = JoyTubeColors.TextSecondary
-                                )
-                                Text(
-                                    text = if (uiState.adBlockEnabled) "Enabled" else "Off",
-                                    style = JoyTubeTypeScale.Label.copy(color = JoyTubeColors.TextPrimary)
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Best-effort filtering inside JoyTube's browser. It is not system-wide and does not block YouTube ads.",
-                            style = JoyTubeTypeScale.Metadata
-                        )
-                    }
-                }
-            } else {
-                // Active Browser Page View with Media Detection & Ad-Filter Status
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .joyTubeOutlinedSurface(
-                                shape = JoyTubeRadius.ContentCard,
-                                backgroundColor = JoyTubeColors.Surface,
-                                borderColor = JoyTubeColors.BorderStandard
-                            )
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                JoyTubeSvgIcon(type = JoyTubeIconType.Globe, size = 16.dp)
-                                Text(
-                                    text = uiState.activeBrowserUrl,
-                                    style = JoyTubeTypeScale.Label,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Text(
-                                text = if (uiState.blockAdRequests) "Basic filter on" else "Filter off",
-                                style = JoyTubeTypeScale.Microcopy.copy(color = JoyTubeColors.TextSecondary)
-                            )
-                        }
-
-                        PrivacyBrowserWebView(
-                            url = uiState.activeBrowserUrl,
-                            blockAds = uiState.blockAdRequests,
-                            blockPopups = uiState.blockPopups,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(520.dp)
-                                .clip(JoyTubeRadius.ThumbnailInner)
-                        )
-
-                        Text(
-                            text = "JoyTube browser · best-effort ad filtering",
-                            style = JoyTubeTypeScale.CardTitle
-                        )
-                        Text(
-                            text = "A small known-host list only filters this browser. YouTube and its media hosts are untouched. Filtering does not apply to other apps and is not comprehensive.",
-                            style = JoyTubeTypeScale.Metadata
-                        )
-                    }
-                }
-            }
         }
 
         // Bottom Outlined Browser Toolbar: ← | → | ↻ | ⌂ | ... (Screenshot 1)
@@ -796,9 +707,6 @@ fun SettingsScreen(
                         Triple(JoyTubeIconType.ShieldCheck, "Ad blocking") {
                             viewModel.navigateTo(JoyTubeRoute.AdBlockerSettings)
                         },
-                        Triple(JoyTubeIconType.Globe, "Browser preferences") {
-                            viewModel.navigateTo(JoyTubeRoute.BrowserHome)
-                        },
                         Triple(JoyTubeIconType.History, "Clear browsing data") {
                             viewModel.showOverlay(
                                 ActiveOverlay.GenericConfirm(
@@ -849,10 +757,10 @@ fun SettingsScreen(
                             viewModel.showFeedback("Download & import completion alerts enabled")
                         },
                         Triple(JoyTubeIconType.Info, "About JoyTube") {
-                            viewModel.navigateTo(JoyTubeRoute.DesignSystemSpecs)
+                            viewModel.navigateTo(JoyTubeRoute.AboutJoyTube)
                         },
                         Triple(JoyTubeIconType.Document, "Terms and privacy policy") {
-                            viewModel.showFeedback("JoyTube respects platform media policies")
+                            viewModel.navigateTo(JoyTubeRoute.TermsAndPrivacy)
                         },
                         Triple(JoyTubeIconType.SignOut, "Sign out") {
                             viewModel.showOverlay(
@@ -868,69 +776,6 @@ fun SettingsScreen(
                 )
             }
 
-            // Group 5: Keyless Client-Side Architecture, Session Budget & Optional Incremental OAuth 2.0 PKCE Status
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Backend & Keyless Provider Capabilities",
-                        style = JoyTubeTypeScale.CardTitle,
-                        modifier = Modifier.padding(bottom = 2.dp)
-                    )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .joyTubeOutlinedSurface(
-                                shape = JoyTubeRadius.ContentCard,
-                                backgroundColor = JoyTubeColors.Surface,
-                                borderColor = JoyTubeColors.BorderStandard
-                            )
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Public Discovery + JoyTube Data Settings",
-                                style = JoyTubeTypeScale.CardTitle
-                            )
-                            Text(
-                                text = "${uiState.quotaSnapshot.consumedUnits}/${uiState.quotaSnapshot.dailyBudgetUnits} req",
-                                style = JoyTubeTypeScale.MonoToken
-                            )
-                        }
-                        Text(
-                            text = "Discovery uses public provider interfaces without a YouTube API key. Provider availability can change. Supabase sync is not connected in this prototype.",
-                            style = JoyTubeTypeScale.Metadata
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(JoyTubeRadius.SmallControl)
-                                .padding(vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                text = "YouTube Account Access",
-                                    style = JoyTubeTypeScale.Label
-                                )
-                                Text(
-                                text = "JoyTube does not connect to Google or YouTube accounts",
-                                    style = JoyTubeTypeScale.Microcopy
-                                )
-                            }
-                            Text(
-                                text = "Unavailable",
-                                style = JoyTubeTypeScale.Label.copy(color = JoyTubeColors.TextPrimary)
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -1024,18 +869,26 @@ fun ProfileScreen(
                             .border(1.dp, JoyTubeColors.BorderStandard, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        JoyTubeSvgIcon(type = JoyTubeIconType.NavAccount, size = 30.dp)
+                        JoyTubeAccountAvatarBadge(
+                            initial = uiState.authSession?.displayName?.take(1)
+                                ?: uiState.displayName.take(1).ifEmpty { "D" },
+                            size = 76.dp,
+                            imageUrl = uiState.authSession?.avatarUrl
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = uiState.displayName,
+                        text = uiState.authSession?.displayName ?: uiState.displayName,
                         style = JoyTubeTypeScale.PageTitle
                     )
-                    Text(
-                        text = "@${uiState.username}",
-                        style = JoyTubeTypeScale.Metadata
-                    )
+                    val accountEmail = uiState.authSession?.email ?: uiState.email
+                    if (accountEmail.isNotBlank()) {
+                        Text(
+                            text = accountEmail,
+                            style = JoyTubeTypeScale.Metadata
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     JoyTubeFilterPill(
                         label = if (isEditing) "Cancel edit" else "Edit profile",
@@ -1112,17 +965,7 @@ fun ProfileScreen(
                                 isEditing = true
                             },
                             Triple(JoyTubeIconType.ShieldCheck, "JoyTube account session") {
-                                viewModel.showFeedback("Local demo session · Authentication service is not connected")
-                            },
-                            Triple(JoyTubeIconType.Trash, "Delete account") {
-                                viewModel.showOverlay(
-                                    ActiveOverlay.GenericConfirm(
-                                        title = "Delete account permanently?",
-                                        message = "All categories and imported items associated with @${uiState.username} will be removed.",
-                                        confirmLabel = "Delete account",
-                                        onConfirmAction = ConfirmActionType.DeleteAccount
-                                    )
-                                )
+                                viewModel.showFeedback("Signed in with Google through Supabase Auth")
                             }
                         )
                     )
@@ -1299,6 +1142,153 @@ fun AuthFlowScreen(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@Composable
+fun AboutJoyTubeScreen(viewModel: JoyTubeViewModel, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize().background(JoyTubeColors.Background)
+    ) {
+        JoyTubeSecondaryTopBar(title = "About JoyTube", onBackClick = { viewModel.navigateBack() })
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                DocumentCard(
+                    title = "JoyTube for Android",
+                    body = "Version ${com.example.BuildConfig.VERSION_NAME}. JoyTube helps you discover public YouTube and YouTube Music content and organize media you own or have permission to use."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Discovery and playback",
+                    body = "Search results are requested from YouTube and YouTube Music using their web client interfaces. These are not the official YouTube Data API and can change without notice. YouTube content is played through YouTube's embedded player. Playback availability, ads, quality, captions, and live-stream support are controlled by YouTube and the content owner; JoyTube cannot guarantee every item will play."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Account and sync",
+                    body = "Google sign-in is used to authenticate your JoyTube account through Supabase. JoyTube does not request your Google password or YouTube account access. Account profile details, preferences, collections, and imported-item metadata are synced through Supabase when the service is configured and reachable."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Files and downloads",
+                    body = "Imported media files remain on your device; cloud records hold metadata and a local file reference may be kept on-device. JoyTube does not upload downloaded media files to Supabase. JoyTube does not provide a YouTube stream downloader."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Independence",
+                    body = "JoyTube is an independent project and is not affiliated with, endorsed by, or sponsored by Google or YouTube."
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TermsAndPrivacyScreen(viewModel: JoyTubeViewModel, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize().background(JoyTubeColors.Background)
+    ) {
+        JoyTubeSecondaryTopBar(title = "Terms and privacy", onBackClick = { viewModel.navigateBack() })
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                DocumentCard(
+                    title = "Using JoyTube",
+                    body = "Use JoyTube lawfully and respect the rights of creators and service providers. Do not use it to copy, redistribute, or download content unless you have the rights or the service explicitly permits it. YouTube playback remains subject to YouTube's terms and the content owner's settings."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Information JoyTube handles",
+                    body = "When you sign in, Supabase Auth receives your authentication request and JoyTube uses your account ID, email, display name, username, and available profile image. JoyTube may sync your app theme and settings, collection names and descriptions, imported-item metadata, favourites, recent imports, and related counts. Cloud operations require a connection and are subject to the project's Supabase configuration and access policies."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Information kept on your device",
+                    body = "Selected local media references, app state, and files you import or download are kept on this device. Media files are not uploaded to Supabase by JoyTube. Removing the app or clearing its data may remove app-private files and locally stored references."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "YouTube and Google services",
+                    body = "Search requests go to YouTube or YouTube Music, and playback loads YouTube's embedded player. Those services receive network and request information under their own policies. JoyTube does not access or store your YouTube subscriptions, likes, dislikes, Google password, or YouTube account credentials, and it does not write your viewing activity to YouTube watch history through an account API."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Security and availability",
+                    body = "JoyTube uses Supabase authentication and user-scoped database access for cloud records. Keep your device secure and sign out on shared devices. Network services, search interfaces, and playback are provided by third parties and may be unavailable or change. JoyTube is provided without a guarantee of uninterrupted service or playback."
+                )
+            }
+            item {
+                DocumentCard(
+                    title = "Account deletion",
+                    body = "Permanent account deletion is not currently available inside JoyTube. Signing out only ends the session and does not delete cloud profile or library records. Do not treat sign-out as an account deletion request."
+                )
+            }
+            item {
+                val uriHandler = LocalUriHandler.current
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .joyTubeOutlinedSurface(
+                            shape = JoyTubeRadius.ContentCard,
+                            backgroundColor = JoyTubeColors.Surface,
+                            borderColor = JoyTubeColors.BorderStandard
+                        )
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Third-party policies", style = JoyTubeTypeScale.CardTitle)
+                    listOf(
+                        "YouTube Terms of Service" to "https://www.youtube.com/t/terms",
+                        "Google Privacy Policy" to "https://policies.google.com/privacy",
+                        "Supabase Privacy Policy" to "https://supabase.com/privacy"
+                    ).forEach { (label, url) ->
+                        Text(
+                            text = label,
+                            style = JoyTubeTypeScale.Metadata.copy(color = JoyTubeColors.TextPrimary),
+                            modifier = Modifier.clickable { runCatching { uriHandler.openUri(url) } }
+                        )
+                    }
+                }
+            }
+            item {
+                DocumentCard(
+                    title = "Contact and changes",
+                    body = "These in-app terms and privacy notes describe the current app behavior; they are not a promise that every planned feature exists. The project owner may update the app and this text as behavior changes. For questions or corrections, use the JoyTube project's issue tracker on GitHub."
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DocumentCard(title: String, body: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .joyTubeOutlinedSurface(
+                shape = JoyTubeRadius.ContentCard,
+                backgroundColor = JoyTubeColors.Surface,
+                borderColor = JoyTubeColors.BorderStandard
+            )
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = title, style = JoyTubeTypeScale.CardTitle)
+        Text(text = body, style = JoyTubeTypeScale.Metadata)
     }
 }
 
