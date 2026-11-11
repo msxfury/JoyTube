@@ -18,6 +18,14 @@ JoyTube is an Android media browsing and personal-library project built with Kot
 
 > JoyTube is an independent project, not an official YouTube app. YouTube pages and playback remain subject to YouTube's availability, restrictions, and ads. JoyTube does not provide YouTube Premium features or remove YouTube ads.
 
+## Current build: 1.0.6
+
+This README describes the Android source at version **1.0.6**. The current YouTube experience is YouTube's own mobile website rendered inside GeckoView, with JoyTube's app header and navigation around it. The YouTube Home, Shorts, and Search destinations use that same embedded browser experience.
+
+The JoyTube media panel is an experimental browser add-on for YouTube pages. It can request a quality already exposed by YouTube's player and attempt a Web Audio volume boost on compatible streams. These controls are best-effort: YouTube can ignore quality requests, and cross-origin audio can prevent boosting. They do not create higher-quality media, unlock Premium features, download YouTube media, or change YouTube ads.
+
+The optional privacy filter uses Brave's standalone Rust `adblock` engine compiled to WebAssembly with EasyPrivacy rules. It is for tracker filtering in GeckoView; YouTube page and media requests are deliberately excluded. It is not a YouTube ad blocker.
+
 ## Release information
 
 | Item | Value |
