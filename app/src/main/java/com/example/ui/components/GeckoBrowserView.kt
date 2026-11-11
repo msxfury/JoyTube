@@ -12,6 +12,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.Text
@@ -200,6 +203,7 @@ fun GeckoBrowserView(
     url: String,
     controller: GeckoBrowserController,
     onLocationChanged: (String) -> Unit,
+    onScrollYChanged: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     privacyFilteringEnabled: Boolean = false
 ) {
@@ -209,6 +213,11 @@ fun GeckoBrowserView(
             factory = { context ->
             val session = GeckoSession()
             val binding = BrowserBinding(session, url, privacyFilteringEnabled)
+            session.setScrollDelegate(object : GeckoSession.ScrollDelegate {
+                override fun onScrollChanged(session: GeckoSession, scrollX: Int, scrollY: Int) {
+                    if (session === binding.session) onScrollYChanged(scrollY)
+                }
+            })
             session.setNavigationDelegate(object : GeckoSession.NavigationDelegate {
                 override fun onLoadRequest(
                     session: GeckoSession,
@@ -252,18 +261,20 @@ fun GeckoBrowserView(
             controller.attach(session)
             GeckoView(context).apply {
                 tag = binding
+                // Browser rendering must not depend on the optional extension handshake.
+                // Open immediately so a delayed extension cannot leave YouTube blank.
+                session.open(JoyTubeGeckoRuntime.get(context))
+                setSession(session)
+                binding.opened = true
+                session.loadUri(binding.requestedUrl)
                 JoyTubeGeckoRuntime.preparePrivacyFilter(context, privacyFilteringEnabled) { ready ->
                     if (binding.released) return@preparePrivacyFilter
                     if (!ready && binding.filteringEnabled) {
                         Log.e("JoyTubePrivacy", "Privacy filtering was enabled but its engine did not start")
-                        controller.updatePrivacyFilterError("Privacy filtering could not start. Open Privacy filtering in Settings and turn it off to continue browsing.")
+                        controller.updatePrivacyFilterError("Privacy filtering could not start. YouTube browsing is still available; check Privacy filtering in Settings.")
                         return@preparePrivacyFilter
                     }
                     controller.updatePrivacyFilterError(null)
-                    session.open(JoyTubeGeckoRuntime.get(context))
-                    setSession(session)
-                    binding.opened = true
-                    session.loadUri(binding.requestedUrl)
                 }
             }
         },
@@ -274,7 +285,7 @@ fun GeckoBrowserView(
                 JoyTubeGeckoRuntime.preparePrivacyFilter(view.context, privacyFilteringEnabled) { ready ->
                     if (!ready && privacyFilteringEnabled) {
                         Log.e("JoyTubePrivacy", "Privacy filtering could not be enabled for this GeckoView session")
-                        controller.updatePrivacyFilterError("Privacy filtering could not start. Open Privacy filtering in Settings and turn it off to continue browsing.")
+                        controller.updatePrivacyFilterError("Privacy filtering could not start. YouTube browsing is still available; check Privacy filtering in Settings.")
                     } else {
                         controller.updatePrivacyFilterError(null)
                     }
@@ -299,11 +310,12 @@ fun GeckoBrowserView(
         controller.privacyFilterError?.let { message ->
             Box(
                 modifier = Modifier
-                    .matchParentSize()
-                    .background(Color(0xFF101114)),
+                    .fillMaxWidth()
+                    .align(androidx.compose.ui.Alignment.TopCenter)
+                    .background(Color(0xFF30241A)),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
-                Text(text = message, color = Color.White)
+                Text(text = message, color = Color.White, modifier = Modifier.padding(8.dp))
             }
         }
     }

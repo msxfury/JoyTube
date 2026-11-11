@@ -66,6 +66,24 @@ fun JoyTubeAppRoot(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isDockScrollCompacted by remember { mutableStateOf(false) }
+    val onGeckoScrollYChanged = remember {
+        var previousY: Int? = null
+        var accumulatedDelta = 0
+        { scrollY: Int ->
+            val previous = previousY
+            previousY = scrollY
+            if (previous != null) {
+                accumulatedDelta += previous - scrollY
+                if (accumulatedDelta < -48 && !isDockScrollCompacted) {
+                    isDockScrollCompacted = true
+                    accumulatedDelta = 0
+                } else if (accumulatedDelta > 36 && isDockScrollCompacted) {
+                    isDockScrollCompacted = false
+                    accumulatedDelta = 0
+                }
+            }
+        }
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     val updatePreferences = remember(context) {
         context.getSharedPreferences(APP_UPDATE_PREFERENCES, android.content.Context.MODE_PRIVATE)
@@ -171,9 +189,9 @@ fun JoyTubeAppRoot(
             } else when (val route = uiState.currentRoute) {
                 is JoyTubeRoute.Main -> {
                     when (route.tab) {
-                        PrimaryTab.Home -> HomeScreen(uiState = uiState, viewModel = viewModel)
-                        PrimaryTab.Shorts -> ShortsScreen(uiState = uiState, viewModel = viewModel, isFullscreen = false)
-                        PrimaryTab.Search -> SearchScreen(uiState = uiState, viewModel = viewModel)
+                        PrimaryTab.Home -> HomeScreen(uiState = uiState, viewModel = viewModel, onGeckoScrollYChanged = onGeckoScrollYChanged)
+                        PrimaryTab.Shorts -> ShortsScreen(uiState = uiState, viewModel = viewModel, isFullscreen = false, onGeckoScrollYChanged = onGeckoScrollYChanged)
+                        PrimaryTab.Search -> SearchScreen(uiState = uiState, viewModel = viewModel, onGeckoScrollYChanged = onGeckoScrollYChanged)
                         PrimaryTab.Account -> AccountScreen(uiState = uiState, viewModel = viewModel)
                     }
                 }

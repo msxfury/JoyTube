@@ -41,6 +41,7 @@ import com.example.viewmodel.JoyTubeViewModel
 fun HomeScreen(
     uiState: JoyTubeUiState,
     viewModel: JoyTubeViewModel,
+    onGeckoScrollYChanged: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val controller = remember { GeckoBrowserController() }
@@ -57,6 +58,7 @@ fun HomeScreen(
             url = "https://m.youtube.com",
             controller = controller,
             onLocationChanged = viewModel::updateBrowserLocation,
+            onScrollYChanged = onGeckoScrollYChanged,
             privacyFilteringEnabled = uiState.adBlockEnabled,
             modifier = Modifier
                 .fillMaxSize()
@@ -143,6 +145,7 @@ fun ShortsScreen(
     uiState: JoyTubeUiState,
     viewModel: JoyTubeViewModel,
     isFullscreen: Boolean = false,
+    onGeckoScrollYChanged: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val controller = remember { GeckoBrowserController() }
@@ -167,6 +170,7 @@ fun ShortsScreen(
             url = "https://m.youtube.com/shorts",
             controller = controller,
             onLocationChanged = viewModel::updateBrowserLocation,
+            onScrollYChanged = onGeckoScrollYChanged,
             privacyFilteringEnabled = uiState.adBlockEnabled,
             modifier = Modifier
                 .fillMaxSize()
@@ -188,6 +192,7 @@ fun ShortsScreen(
 fun SearchScreen(
     uiState: JoyTubeUiState,
     viewModel: JoyTubeViewModel,
+    onGeckoScrollYChanged: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Search belongs to YouTube here: use its own mobile search UI inside GeckoView.
@@ -206,6 +211,7 @@ fun SearchScreen(
             url = "https://m.youtube.com/results?search_query=",
             controller = browserController,
             onLocationChanged = viewModel::updateBrowserLocation,
+            onScrollYChanged = onGeckoScrollYChanged,
             privacyFilteringEnabled = uiState.adBlockEnabled,
             modifier = Modifier
                 .weight(1f)
@@ -275,9 +281,6 @@ fun PublicCategorySearchRow(
  * - Create Category
  * - Imported Videos
  * - Favourites
- * - Downloads
- * - History
- * - Browser
  * - Settings
  */
 @Composable
@@ -390,14 +393,6 @@ fun AccountScreen(
                     title = "Favourites",
                     tag = "dest_favourites",
                     onClick = { viewModel.navigateTo(JoyTubeRoute.Favourites) }
-                )
-            }
-            item {
-                AccountDestinationRow(
-                    icon = JoyTubeIconType.Download,
-                    title = "Downloads",
-                    tag = "dest_downloads",
-                    onClick = { viewModel.navigateTo(JoyTubeRoute.Downloads) }
                 )
             }
             item {
