@@ -7,7 +7,7 @@
 [![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![GeckoView](https://img.shields.io/badge/Browser-GeckoView-FF7139?logo=firefoxbrowser&logoColor=white)](https://mozilla.github.io/geckoview/)
-[![Version](https://img.shields.io/badge/Version-1.0.6-blue)](#release-information)
+[![Version](https://img.shields.io/badge/Version-1.0.7-blue)](#release-information)
 [![GitHub](https://img.shields.io/badge/GitHub-thecodencoffee%2FJoyTube-181717?logo=github)](https://github.com/thecodencoffee/JoyTube)
 
 **Maintainer: [thecodencoffee](https://github.com/thecodencoffee)** · [Latest releases](https://github.com/thecodencoffee/JoyTube/releases/latest)
@@ -18,9 +18,9 @@ JoyTube is an Android media browsing and personal-library project built with Kot
 
 > JoyTube is an independent project, not an official YouTube app. YouTube pages and playback remain subject to YouTube's availability, restrictions, and ads. JoyTube does not provide YouTube Premium features or remove YouTube ads.
 
-## Current build: 1.0.6
+## Current build: 1.0.7
 
-This README describes the Android source at version **1.0.6**. The current YouTube experience is YouTube's own mobile website rendered inside GeckoView, with JoyTube's app header and navigation around it. The YouTube Home, Shorts, and Search destinations use that same embedded browser experience.
+This README describes the Android source at version **1.0.7**. The current YouTube experience is YouTube's own mobile website rendered inside GeckoView, with JoyTube's app header and navigation around it. The YouTube Home, Shorts, and Search destinations use that same embedded browser experience.
 
 The JoyTube media panel is an experimental browser add-on for YouTube pages. It can request a quality already exposed by YouTube's player and attempt a Web Audio volume boost on compatible streams. These controls are best-effort: YouTube can ignore quality requests, and cross-origin audio can prevent boosting. They do not create higher-quality media, unlock Premium features, download YouTube media, or change YouTube ads.
 
@@ -32,8 +32,8 @@ The GeckoView scroll delegate now drives JoyTube's floating navigation animation
 
 | Item | Value |
 | --- | --- |
-| App version | **1.0.6** |
-| Android version code | `7` |
+| App version | **1.0.7** |
+| Android version code | `8` |
 | Minimum Android | Android 8.0 (API 26) |
 | Target Android | API 36 |
 | Maintainer | [thecodencoffee](https://github.com/thecodencoffee) |
@@ -80,7 +80,7 @@ The GeckoView browser displays YouTube's website inside JoyTube. It does not tur
 
 | Stage | Focus | Status |
 | --- | --- | --- |
-| Current Android release (1.0.6) | YouTube Home, Shorts, and Search inside GeckoView; compact header and hideable JoyTube dock; public New Imported Joy's feed; optional Rust/EasyPrivacy filtering | Included in the Android source. The public feed is read-only and requires media uploaded and published to Supabase Storage. YouTube page behavior depends on YouTube, device, and network availability. |
+| Current Android release (1.0.7) | YouTube Home, Shorts, and Search inside GeckoView; scroll-aware JoyTube dock; video-only volume and quality controls; Account Downloads shortcut removed; public New Imported Joy's feed; optional Rust/EasyPrivacy filtering | Included in the Android source. YouTube quality and volume controls are best-effort. The download icon does not download YouTube playback. The public feed is read-only and requires media uploaded and published to Supabase Storage. |
 | Next | Improve search and browser reliability across Android devices | Planned; depends on upstream YouTube website behavior. |
 | Future | Evaluate a native iOS client | Planned; not included in this Android repository. |
 
