@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Immutable
 data class JoyTubeUiState(
@@ -127,6 +128,9 @@ class JoyTubeViewModel : ViewModel() {
     private val initialPrivacyFilterEnabled = privacyFilterPreferences?.getBoolean("enabled", false) ?: false
     private var updateCheckInProgress = false
 
+    /** SupabaseJoyTubeRepository uses synchronous OkHttp; never invoke it on the UI dispatcher. */
+    private suspend fun <T> runCloudIo(block: () -> T): T = withContext(Dispatchers.IO) { block() }
+
     val videoProvider = VideoProvider(quotaManager)
     val shortsProvider = ShortsProvider(quotaManager) { _uiState.value.mediaList }
     val liveProvider = LiveProvider(quotaManager)
@@ -174,7 +178,7 @@ class JoyTubeViewModel : ViewModel() {
                         )
                     }
                 } else {
-                    val cloudLibrary = runCatching { cloudRepository.loadLibrary(refreshed) }
+                    val cloudLibrary = runCatching { runCloudIo { cloudRepository.loadLibrary(refreshed) } }
                     val privacyFilterEnabled = restorePrivacyFilterSetting(
                         cloudLibrary.getOrNull()?.settings,
                         _uiState.value.adBlockEnabled
@@ -187,7 +191,11 @@ class JoyTubeViewModel : ViewModel() {
                             displayName = refreshed.displayName,
                             email = refreshed.email,
                             mediaList = cloudLibrary.getOrNull()?.let { library ->
-                                authManager.applicationContextOrNull()?.let { context -> cloudRepository.restoreLocalMediaPointers(context, refreshed, library.media) } ?: library.media
+                                runCloudIo {
+                                    authManager.applicationContextOrNull()?.let { context ->
+                                        cloudRepository.restoreLocalMediaPointers(context, refreshed, library.media)
+                                    } ?: library.media
+                                }
                             } ?: it.mediaList,
                             categories = cloudLibrary.getOrNull()?.collections ?: it.categories,
                             importedItemsCount = cloudLibrary.getOrNull()?.media?.size ?: it.importedItemsCount,
@@ -196,7 +204,9 @@ class JoyTubeViewModel : ViewModel() {
                             blockAdRequests = cloudLibrary.getOrNull()?.settings?.optBoolean("blockAdRequests", it.blockAdRequests) ?: it.blockAdRequests,
                             blockPopups = cloudLibrary.getOrNull()?.settings?.optBoolean("blockPopups", it.blockPopups) ?: it.blockPopups,
                             hideCookieBanners = cloudLibrary.getOrNull()?.settings?.optBoolean("hideCookieBanners", it.hideCookieBanners) ?: it.hideCookieBanners,
-                            feedbackMessage = cloudLibrary.exceptionOrNull()?.let { error -> "Signed in, but cloud library failed to load: ${error.message}" }
+                            feedbackMessage = cloudLibrary.exceptionOrNull()?.let { error ->
+                                "Signed in, but cloud library failed to load: ${error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName}"
+                            }
                         )
                     }
                 }
@@ -221,7 +231,7 @@ class JoyTubeViewModel : ViewModel() {
             val item = _uiState.value.mediaList.firstOrNull { it.id == route.mediaId }
             val session = _uiState.value.authSession
             if (item?.isOwnedByCurrentUser == true && session != null) viewModelScope.launch {
-                runCatching { cloudRepository.recordView(session, item.id) }
+                runCatching { runCloudIo { cloudRepository.recordView(session, item.id) } }
                     .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "View count sync failed: ${error.message}") } }
             }
         }
@@ -352,7 +362,7 @@ class JoyTubeViewModel : ViewModel() {
         }
         _uiState.value.authSession?.let { session ->
             viewModelScope.launch {
-                runCatching { cloudRepository.saveTheme(session, if (_uiState.value.glassDesignEnabled) "glass" else "normal") }
+                runCatching { runCloudIo { cloudRepository.saveTheme(session, if (_uiState.value.glassDesignEnabled) "glass" else "normal") } }
                     .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Theme sync failed: ${error.message}") } }
             }
         }
@@ -376,7 +386,7 @@ class JoyTubeViewModel : ViewModel() {
         val session = _uiState.value.authSession
         val media = _uiState.value.mediaList.firstOrNull { it.id == mediaId }
         if (session != null && media?.isOwnedByCurrentUser == true) viewModelScope.launch {
-            runCatching { cloudRepository.setFavourite(session, mediaId, media.isFavourite) }
+            runCatching { runCloudIo { cloudRepository.setFavourite(session, mediaId, media.isFavourite) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Favourite sync failed: ${error.message}") } }
         }
     }
@@ -414,7 +424,7 @@ class JoyTubeViewModel : ViewModel() {
         val session = _uiState.value.authSession
         val category = _uiState.value.categories.firstOrNull { it.id == categoryId }
         if (session != null && category != null) viewModelScope.launch {
-            runCatching { cloudRepository.setCollectionFavourite(session, categoryId, category.isFavourite) }
+            runCatching { runCloudIo { cloudRepository.setCollectionFavourite(session, categoryId, category.isFavourite) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Collection favourite sync failed: ${error.message}") } }
         }
     }
@@ -552,7 +562,7 @@ class JoyTubeViewModel : ViewModel() {
             return
         }
         viewModelScope.launch {
-            val savedCategory = runCatching { cloudRepository.createCollection(session, newCat) }
+            val savedCategory = runCatching { runCloudIo { cloudRepository.createCollection(session, newCat) } }
             if (savedCategory.isFailure) {
                 _uiState.update { it.copy(activeOverlay = null, feedbackMessage = "Collection save failed: ${savedCategory.exceptionOrNull()?.message}") }
                 return@launch
@@ -582,7 +592,7 @@ class JoyTubeViewModel : ViewModel() {
         val session = _uiState.value.authSession
         val category = _uiState.value.categories.firstOrNull { it.id == categoryId }
         if (session != null && category != null) viewModelScope.launch {
-            runCatching { cloudRepository.updateCollection(session, category) }
+            runCatching { runCloudIo { cloudRepository.updateCollection(session, category) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Collection sync failed: ${error.message}") } }
         }
     }
@@ -605,7 +615,7 @@ class JoyTubeViewModel : ViewModel() {
         val session = _uiState.value.authSession
         val category = _uiState.value.categories.firstOrNull { it.id == categoryId }
         if (session != null && category != null) viewModelScope.launch {
-            runCatching { cloudRepository.updateCollection(session, category) }
+            runCatching { runCloudIo { cloudRepository.updateCollection(session, category) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Collection sync failed: ${error.message}") } }
         }
     }
@@ -630,7 +640,7 @@ class JoyTubeViewModel : ViewModel() {
             )
         }
         _uiState.value.authSession?.let { session -> viewModelScope.launch {
-            runCatching { cloudRepository.deleteCollection(session, categoryId) }
+            runCatching { runCloudIo { cloudRepository.deleteCollection(session, categoryId) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Collection delete sync failed: ${error.message}") } }
         } }
     }
@@ -638,7 +648,7 @@ class JoyTubeViewModel : ViewModel() {
     fun deleteSelectedCategories(categoryIds: Set<String>) {
         val session = _uiState.value.authSession
         if (session != null) viewModelScope.launch {
-            categoryIds.forEach { id -> runCatching { cloudRepository.deleteCollection(session, id) } }
+            runCloudIo { categoryIds.forEach { id -> cloudRepository.deleteCollection(session, id) } }
         }
         _uiState.update { state ->
             val ownedCatIds = state.categories
@@ -659,7 +669,7 @@ class JoyTubeViewModel : ViewModel() {
         val session = _uiState.value.authSession
         if (session != null) viewModelScope.launch {
             targetCategoryIds.forEach { categoryId -> mediaIds.forEachIndexed { index, mediaId ->
-                runCatching { cloudRepository.attachAsset(session, categoryId, mediaId, index) }
+                runCatching { runCloudIo { cloudRepository.attachAsset(session, categoryId, mediaId, index) } }
                     .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Collection item sync failed: ${error.message}") } }
             } }
         }
@@ -692,7 +702,7 @@ class JoyTubeViewModel : ViewModel() {
             )
         }
         _uiState.value.authSession?.let { session -> viewModelScope.launch {
-            runCatching { cloudRepository.removeAssetFromCollection(session, categoryId, mediaId) }
+            runCatching { runCloudIo { cloudRepository.removeAssetFromCollection(session, categoryId, mediaId) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Collection item sync failed: ${error.message}") } }
         } }
     }
@@ -1053,19 +1063,23 @@ class JoyTubeViewModel : ViewModel() {
         )
 
         viewModelScope.launch {
-        val savedId = runCatching { cloudRepository.createImportedAsset(session, newItem) }
+        val savedId = runCatching { runCloudIo { cloudRepository.createImportedAsset(session, newItem) } }
         if (savedId.isFailure) {
             _uiState.update { it.copy(feedbackMessage = "Import metadata save failed: ${savedId.exceptionOrNull()?.message}") }
             return@launch
         }
         val persistedItem = newItem.copy(id = savedId.getOrThrow())
-        localUri?.let { uri -> authManager.applicationContextOrNull()?.let { context ->
-            cloudRepository.saveLocalMediaPointer(context, session.userIdUuid, persistedItem.id, uri, persistedItem.localMimeType, persistedItem.localSizeBytes)
+        localUri?.let { uri -> runCloudIo {
+            authManager.applicationContextOrNull()?.let { context ->
+                cloudRepository.saveLocalMediaPointer(context, session.userIdUuid, persistedItem.id, uri, persistedItem.localMimeType, persistedItem.localSizeBytes)
+            }
         } }
         runCatching {
-            cloudRepository.recordRecentImport(session, persistedItem.id)
-            _uiState.value.categories.firstOrNull { it.id == draft.targetCategoryId }?.let { cat ->
-                cloudRepository.attachAsset(session, cat.id, persistedItem.id, cat.mediaIds.size)
+            runCloudIo {
+                cloudRepository.recordRecentImport(session, persistedItem.id)
+                _uiState.value.categories.firstOrNull { it.id == draft.targetCategoryId }?.let { cat ->
+                    cloudRepository.attachAsset(session, cat.id, persistedItem.id, cat.mediaIds.size)
+                }
             }
         }.onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Imported, but collection/recent sync failed: ${error.message}") } }
 
@@ -1373,8 +1387,10 @@ class JoyTubeViewModel : ViewModel() {
         }
         val session = _uiState.value.authSession
         if (session != null) viewModelScope.launch {
-            runCatching { authManager.updateProfile(session, cleanUser, cleanName) }
-                .onSuccess { cloudRepository.saveProfile(session, cleanName) }
+            runCatching {
+                authManager.updateProfile(session, cleanUser, cleanName)
+                runCloudIo { cloudRepository.saveProfile(session, cleanName) }
+            }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Profile sync failed: ${error.message}") } }
         }
     }
@@ -1388,7 +1404,7 @@ class JoyTubeViewModel : ViewModel() {
             .put("blockPopups", state.blockPopups)
             .put("hideCookieBanners", state.hideCookieBanners)
         viewModelScope.launch {
-            runCatching { cloudRepository.saveSettings(session, settings) }
+            runCatching { runCloudIo { cloudRepository.saveSettings(session, settings) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Settings sync failed: ${error.message}") } }
         }
     }
@@ -1402,7 +1418,7 @@ class JoyTubeViewModel : ViewModel() {
         viewModelScope.launch {
             runCatching { authManager.signInWithGoogle(activity) }
                 .onSuccess { session ->
-                    val cloudLibrary = runCatching { cloudRepository.loadLibrary(session) }
+                    val cloudLibrary = runCatching { runCloudIo { cloudRepository.loadLibrary(session) } }
                     val privacyFilterEnabled = restorePrivacyFilterSetting(
                         cloudLibrary.getOrNull()?.settings,
                         _uiState.value.adBlockEnabled
@@ -1415,7 +1431,11 @@ class JoyTubeViewModel : ViewModel() {
                             displayName = session.displayName,
                             email = session.email,
                             mediaList = cloudLibrary.getOrNull()?.let { library ->
-                                authManager.applicationContextOrNull()?.let { context -> cloudRepository.restoreLocalMediaPointers(context, session, library.media) } ?: library.media
+                                runCloudIo {
+                                    authManager.applicationContextOrNull()?.let { context ->
+                                        cloudRepository.restoreLocalMediaPointers(context, session, library.media)
+                                    } ?: library.media
+                                }
                             } ?: it.mediaList,
                             categories = cloudLibrary.getOrNull()?.collections ?: it.categories,
                             importedItemsCount = cloudLibrary.getOrNull()?.media?.size ?: 0,
@@ -1427,7 +1447,9 @@ class JoyTubeViewModel : ViewModel() {
                             currentRoute = JoyTubeRoute.Main(PrimaryTab.Home),
                             backStack = emptyList(),
                             activeOverlay = null,
-                            feedbackMessage = cloudLibrary.exceptionOrNull()?.let { error -> "Signed in, but cloud library failed to load: ${error.message}" } ?: "Signed in as ${session.email}"
+                            feedbackMessage = cloudLibrary.exceptionOrNull()?.let { error ->
+                                "Signed in, but cloud library failed to load: ${error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName}"
+                            } ?: "Signed in as ${session.email}"
                         )
                     }
                 }

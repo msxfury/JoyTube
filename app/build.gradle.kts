@@ -23,8 +23,8 @@ android {
     // GeckoView 145 requires Android 8.0 (API 26).
     minSdk = 26
     targetSdk = 36
-    versionCode = 4
-    versionName = "1.0.3"
+    versionCode = 5
+    versionName = "1.0.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

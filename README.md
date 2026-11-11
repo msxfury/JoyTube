@@ -7,9 +7,10 @@
 [![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![GeckoView](https://img.shields.io/badge/Browser-GeckoView-FF7139?logo=firefoxbrowser&logoColor=white)](https://mozilla.github.io/geckoview/)
-[![Version](https://img.shields.io/badge/Version-1.0.3-blue)](#release-information)
+[![Version](https://img.shields.io/badge/Version-1.0.4-blue)](#release-information)
+[![GitHub](https://img.shields.io/badge/GitHub-thecodencoffee%2FJoyTube-181717?logo=github)](https://github.com/thecodencoffee/JoyTube)
 
-**Maintainer: [thecodencoffee](https://github.com/thecodencoffee)**
+**Maintainer: [thecodencoffee](https://github.com/thecodencoffee)** · [Latest releases](https://github.com/thecodencoffee/JoyTube/releases/latest)
 
 </div>
 
@@ -21,8 +22,8 @@ JoyTube is an Android media browsing and personal-library project. The app is bu
 
 | Item | Value |
 | --- | --- |
-| App version | **1.0.3** |
-| Android version code | `4` |
+| App version | **1.0.4** |
+| Android version code | `5` |
 | Minimum Android | Android 8.0 (API 26) |
 | Target Android | API 36 |
 | Maintainer | [thecodencoffee](https://github.com/thecodencoffee) |
@@ -58,7 +59,7 @@ The GeckoView browser displays YouTube's website. It does not turn JoyTube into 
 
 | Stage | Focus | Status |
 | --- | --- | --- |
-| Current Android release (1.0.3) | GeckoView browser, optional Rust/EasyPrivacy filtering, YouTube mobile website access, Google profile display, and release notices | Included in the Android source. Google sign-in and YouTube playback still depend on the configured providers, device, and YouTube availability. |
+| Current Android release (1.0.4) | GeckoView browser, optional Rust/EasyPrivacy filtering, YouTube mobile website access, Google profile display, release notices, and background Supabase library requests | Included in the Android source. Google sign-in and YouTube playback still depend on the configured providers, device, and YouTube availability. |
 | Next | Improve search and browser reliability across Android devices | Planned; depends on upstream YouTube website behavior. |
 | Future | Evaluate a native iOS client | Planned; not included in this Android repository. |
 
@@ -78,4 +79,4 @@ JoyTube uses Google sign-in to establish a JoyTube account through Supabase. It 
 
 ## Maintainer
 
-Created and maintained by **[thecodencoffee](https://github.com/thecodencoffee)**.
+Created and maintained by **[thecodencoffee](https://github.com/thecodencoffee)**. See the [JoyTube repository](https://github.com/thecodencoffee/JoyTube) for source code and [releases](https://github.com/thecodencoffee/JoyTube/releases) for Android builds.
