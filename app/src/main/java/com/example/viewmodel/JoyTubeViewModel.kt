@@ -52,6 +52,9 @@ data class JoyTubeUiState(
 
     // Media & Categories (Strictly user-imported or user-created — no fake templates)
     val mediaList: List<MediaItem> = emptyList(),
+    val publicJoys: List<MediaItem> = emptyList(),
+    val isLoadingPublicJoys: Boolean = false,
+    val publicJoysError: String? = null,
     val categories: List<CategoryItem> = emptyList(),
     val importedItemsCount: Int = 0,
 
@@ -227,6 +230,7 @@ class JoyTubeViewModel : ViewModel() {
     }
 
     fun navigateTo(route: JoyTubeRoute) {
+        if (route == JoyTubeRoute.NewImportedJoys) refreshPublicJoys()
         if (route is JoyTubeRoute.VideoPlayer) {
             val item = _uiState.value.mediaList.firstOrNull { it.id == route.mediaId }
             val session = _uiState.value.authSession
@@ -268,6 +272,23 @@ class JoyTubeViewModel : ViewModel() {
                 globalPlayback = updatedPlayback,
                 isPlaying = updatedPlayback.lifecycleState == GlobalPlaybackLifecycleState.PLAYING
             )
+        }
+    }
+
+    fun refreshPublicJoys() {
+        val session = _uiState.value.authSession ?: return
+        _uiState.update { it.copy(isLoadingPublicJoys = true, publicJoysError = null) }
+        viewModelScope.launch {
+            runCatching { runCloudIo { cloudRepository.loadPublicJoys(session) } }
+                .onSuccess { items -> _uiState.update { it.copy(publicJoys = items, isLoadingPublicJoys = false) } }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingPublicJoys = false,
+                            publicJoysError = error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName
+                        )
+                    }
+                }
         }
     }
 

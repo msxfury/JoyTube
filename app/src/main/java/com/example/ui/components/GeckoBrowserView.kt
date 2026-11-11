@@ -189,6 +189,10 @@ class GeckoBrowserController {
     fun reload() {
         session?.reload()
     }
+
+    fun loadUrl(url: String) {
+        if (url.startsWith("https://") || url.startsWith("http://")) session?.loadUri(url)
+    }
 }
 
 @Composable

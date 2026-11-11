@@ -217,6 +217,10 @@ fun JoyTubeAppRoot(
                     ImportedVideosScreen(uiState = uiState, viewModel = viewModel)
                 }
 
+                JoyTubeRoute.NewImportedJoys -> {
+                    NewImportedJoysScreen(uiState = uiState, viewModel = viewModel)
+                }
+
                 JoyTubeRoute.Favourites -> {
                     FavouritesScreen(uiState = uiState, viewModel = viewModel)
                 }

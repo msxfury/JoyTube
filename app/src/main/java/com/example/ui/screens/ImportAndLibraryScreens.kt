@@ -511,6 +511,72 @@ fun ImportCompletionScreen(
  * 4. IMPORTED VIDEOS LIBRARY SCREEN (PART VII — SECTION 26 & SCREENSHOT 18)
  */
 @Composable
+fun NewImportedJoysScreen(
+    uiState: JoyTubeUiState,
+    viewModel: JoyTubeViewModel,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(JoyTubeColors.Background)
+    ) {
+        JoyTubeSecondaryTopBar(
+            title = "New Imported Joy's",
+            onBackClick = { viewModel.navigateBack() },
+            rightActionIcon1 = JoyTubeIconType.Refresh,
+            onRightAction1Click = { viewModel.refreshPublicJoys() }
+        )
+        when {
+            uiState.isLoadingPublicJoys -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Loading public Joys…", style = JoyTubeTypeScale.Metadata)
+            }
+            uiState.publicJoysError != null -> Box(
+                Modifier.fillMaxSize().padding(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Public Joys could not load", style = JoyTubeTypeScale.SectionHeading)
+                    Text(uiState.publicJoysError, style = JoyTubeTypeScale.Metadata)
+                    JoyTubePrimaryButton(text = "Retry", onClick = { viewModel.refreshPublicJoys() })
+                }
+            }
+            uiState.publicJoys.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                JoyTubeEmptyStateCard(
+                    icon = JoyTubeIconType.Globe,
+                    title = "No public Joys yet",
+                    subtitle = "Publicly published videos, Shorts, and music will appear here.",
+                    actionLabel = "Refresh",
+                    onActionClick = { viewModel.refreshPublicJoys() }
+                )
+            }
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize().testTag("new_imported_joys_list"),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(uiState.publicJoys, key = { it.id }) { item ->
+                    CompactMediaRowItem(
+                        media = item,
+                        onClick = { item.remoteMediaUrl?.let(viewModel::openBrowserUrlOrSearch) },
+                        subtitleOverride = "By @${item.importerUsername}",
+                        secondaryMeta = "${item.mediaKindLabel ?: "Video"} · Public",
+                        trailingIcon = JoyTubeIconType.Play,
+                        onTrailingClick = { item.remoteMediaUrl?.let(viewModel::openBrowserUrlOrSearch) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 5. IMPORTED VIDEOS LIBRARY SCREEN (PART VII — SECTION 26 & SCREENSHOT 18)
+ */
+@Composable
 fun ImportedVideosScreen(
     uiState: JoyTubeUiState,
     viewModel: JoyTubeViewModel,

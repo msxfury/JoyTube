@@ -33,6 +33,8 @@ sealed class JoyTubeRoute {
     @Immutable
     object ImportedVideos : JoyTubeRoute()
     @Immutable
+    object NewImportedJoys : JoyTubeRoute()
+    @Immutable
     object Favourites : JoyTubeRoute()
     @Immutable
     object Downloads : JoyTubeRoute()
@@ -98,6 +100,8 @@ data class MediaItem(
     val categoryTag: String,
     val artwork: ArtworkPreset,
     val sourceDomain: String? = null,
+    val mediaKindLabel: String? = null,
+    val remoteMediaUrl: String? = null,
     val customThumbnailUri: String? = null,
     val remoteThumbnailUrl: String? = null,
     val localContentUri: String? = null,

@@ -104,6 +104,42 @@ class SupabaseJoyTubeRepository {
         return LibrarySnapshot(media, cats, preferences.optJSONObject(0)?.optString("theme") ?: "glass", settings)
     }
 
+    /** Public Joys are media explicitly published to the public storage bucket. */
+    fun loadPublicJoys(session: SupabaseAuthSession): List<MediaItem> {
+        val rows = request(
+            "GET",
+            "imported_assets?visibility=eq.public&storage_path=not.is.null&media_kind=in.(video,short,music)&select=id,title,media_kind,creator_username,storage_path,description&order=imported_at.desc&limit=100",
+            session
+        )
+        return buildList {
+            for (index in 0 until rows.length()) {
+                val row = rows.getJSONObject(index)
+                val storagePath = row.optString("storage_path").takeIf(String::isNotBlank) ?: continue
+                val path = storagePath.split('/').joinToString("/") { enc(it) }
+                val kind = row.optString("media_kind")
+                val publicUrl = "${BuildConfig.SUPABASE_URL}/storage/v1/object/public/joytube-public-media/$path"
+                add(
+                    MediaItem(
+                        id = row.getString("id"),
+                        title = row.optString("title", "Untitled Joy"),
+                        importerUsername = row.optString("creator_username").ifBlank { "JoyTube creator" },
+                        isOwnedByCurrentUser = false,
+                        type = if (kind == "short") MediaType.Short else MediaType.Video,
+                        visibility = ContentVisibility.Public,
+                        durationLabel = kind.replaceFirstChar(Char::uppercase),
+                        durationSeconds = 0,
+                        categoryTag = kind,
+                        artwork = com.example.ui.components.ArtworkPreset.SynthwaveStudio,
+                        sourceDomain = "joytube.app",
+                        mediaKindLabel = kind.replaceFirstChar(Char::uppercase),
+                        remoteMediaUrl = publicUrl,
+                        collectionDescription = row.optString("description").takeIf(String::isNotBlank)
+                    )
+                )
+            }
+        }
+    }
+
     fun createCollection(session: SupabaseAuthSession, category: CategoryItem): CategoryItem {
         val body = JSONObject().put("owner_id", session.userIdUuid).put("name", category.name)
             .put("description", category.description).put("visibility", visibility(category.visibility))
