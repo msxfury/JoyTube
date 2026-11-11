@@ -51,15 +51,17 @@ fun HomeScreen(
     ) {
         JoyTubeBrandHeader(
             onSearchClick = { viewModel.selectPrimaryTab(PrimaryTab.Search) },
-            onAccountClick = { viewModel.showOverlay(ActiveOverlay.SwitchAccountModal) },
-            accountInitial = uiState.displayName.take(1).ifEmpty { "D" }
+            onLogoClick = if (uiState.hideJoyTubeNav) ({ viewModel.selectPrimaryTab(PrimaryTab.Account) }) else null
         )
         GeckoBrowserView(
             url = "https://m.youtube.com",
             controller = controller,
             onLocationChanged = viewModel::updateBrowserLocation,
             privacyFilteringEnabled = uiState.adBlockEnabled,
-            modifier = Modifier.fillMaxSize().testTag("youtube_home_geckoview")
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = if (uiState.hideJoyTubeNav) 0.dp else 72.dp)
+                .testTag("youtube_home_geckoview")
         )
     }
 }
@@ -158,8 +160,7 @@ fun ShortsScreen(
         } else {
             JoyTubeBrandHeader(
                 onSearchClick = { viewModel.selectPrimaryTab(PrimaryTab.Search) },
-                onAccountClick = { viewModel.showOverlay(ActiveOverlay.SwitchAccountModal) },
-                accountInitial = uiState.displayName.take(1).ifEmpty { "D" }
+                onLogoClick = if (uiState.hideJoyTubeNav) ({ viewModel.selectPrimaryTab(PrimaryTab.Account) }) else null
             )
         }
         GeckoBrowserView(
@@ -167,7 +168,10 @@ fun ShortsScreen(
             controller = controller,
             onLocationChanged = viewModel::updateBrowserLocation,
             privacyFilteringEnabled = uiState.adBlockEnabled,
-            modifier = Modifier.fillMaxSize().testTag("youtube_shorts_geckoview")
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = if (uiState.hideJoyTubeNav || isFullscreen) 0.dp else 72.dp)
+                .testTag("youtube_shorts_geckoview")
         )
     }
 }
@@ -196,8 +200,7 @@ fun SearchScreen(
     ) {
         JoyTubeBrandHeader(
             onSearchClick = { browserController.loadUrl("https://m.youtube.com/results?search_query=") },
-            onAccountClick = { viewModel.showOverlay(ActiveOverlay.SwitchAccountModal) },
-            accountInitial = uiState.displayName.take(1).ifEmpty { "D" }
+            onLogoClick = if (uiState.hideJoyTubeNav) ({ viewModel.selectPrimaryTab(PrimaryTab.Account) }) else null
         )
         GeckoBrowserView(
             url = "https://m.youtube.com/results?search_query=",
@@ -207,6 +210,7 @@ fun SearchScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .padding(bottom = if (uiState.hideJoyTubeNav) 0.dp else 72.dp)
                 .padding(horizontal = 6.dp)
                 .clip(JoyTubeRadius.ThumbnailInner)
         )
@@ -289,8 +293,7 @@ fun AccountScreen(
     ) {
         JoyTubeBrandHeader(
             onSearchClick = { viewModel.selectPrimaryTab(PrimaryTab.Search) },
-            onAccountClick = { viewModel.showOverlay(ActiveOverlay.SwitchAccountModal) },
-            accountInitial = uiState.displayName.take(1).ifEmpty { "D" }
+            onLogoClick = if (uiState.hideJoyTubeNav) ({ viewModel.selectPrimaryTab(PrimaryTab.Account) }) else null
         )
 
         LazyColumn(
@@ -395,22 +398,6 @@ fun AccountScreen(
                     title = "Downloads",
                     tag = "dest_downloads",
                     onClick = { viewModel.navigateTo(JoyTubeRoute.Downloads) }
-                )
-            }
-            item {
-                AccountDestinationRow(
-                    icon = JoyTubeIconType.History,
-                    title = "History",
-                    tag = "dest_history",
-                    onClick = { viewModel.navigateTo(JoyTubeRoute.History) }
-                )
-            }
-            item {
-                AccountDestinationRow(
-                    icon = JoyTubeIconType.Globe,
-                    title = "Browser",
-                    tag = "dest_browser",
-                    onClick = { viewModel.navigateTo(JoyTubeRoute.BrowserHome) }
                 )
             }
             item {

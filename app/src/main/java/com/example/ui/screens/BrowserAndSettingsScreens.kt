@@ -742,6 +742,12 @@ fun SettingsScreen(
                     groupTitle = "Application",
                     items = listOf(
                         Triple(
+                            JoyTubeIconType.NavHome,
+                            "Hide JoyTube's Nav · ${if (uiState.hideJoyTubeNav) "On" else "Off"}"
+                        ) {
+                            viewModel.toggleHideJoyTubeNav()
+                        },
+                        Triple(
                             JoyTubeIconType.Sparkles,
                             if (uiState.glassDesignEnabled) "Glass Design (Enabled)" else "Glass Design (Disabled)"
                         ) {

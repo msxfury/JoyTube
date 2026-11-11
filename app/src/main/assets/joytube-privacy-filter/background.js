@@ -5,6 +5,10 @@ const FILTER_ASSET = 'easyprivacy.txt';
 const UPDATE_AFTER_MS = 4 * 24 * 60 * 60 * 1000;
 const MIN_FILTER_BYTES = 50000;
 const NATIVE_APP = 'com.example.joytube.privacy';
+const YOUTUBE_MEDIA_HOSTS = [
+  'youtube.com', 'youtube-nocookie.com', 'youtu.be', 'ytimg.com',
+  'googlevideo.com', 'youtube.googleapis.com'
+];
 
 let enabled = false;
 let engine = null;
@@ -76,9 +80,24 @@ async function createEngine(listText) {
   };
 }
 
+function hostIsYouTube(hostname) {
+  const host = (hostname || '').toLowerCase().replace(/\.$/, '');
+  return YOUTUBE_MEDIA_HOSTS.some(domain => host === domain || host.endsWith(`.${domain}`));
+}
+
+function isYouTubeRequest(details) {
+  return [details.url, details.documentUrl, details.originUrl].some(value => {
+    try {
+      return hostIsYouTube(new URL(value).hostname);
+    } catch (_) {
+      return false;
+    }
+  });
+}
+
 function onBeforeRequest(details) {
   const activeEngine = engine;
-  if (!enabled || !activeEngine) return {};
+  if (!enabled || !activeEngine || isYouTubeRequest(details)) return {};
   try {
     return activeEngine.check(details) ? { cancel: true } : {};
   } catch (_) {
@@ -190,4 +209,8 @@ try {
   });
 } catch (_) {
   // Filtering remains off unless JoyTube explicitly enables it through GeckoView.
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { hostIsYouTube, isYouTubeRequest };
 }

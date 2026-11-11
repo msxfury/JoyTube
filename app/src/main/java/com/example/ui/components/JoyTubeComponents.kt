@@ -177,24 +177,24 @@ fun JoyTubeAccountAvatarBadge(
 @Composable
 fun JoyTubeBrandHeader(
     onSearchClick: () -> Unit,
-    onAccountClick: (() -> Unit)? = null,
-    accountInitial: String = "D",
+    onLogoClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val searchInteraction = remember { MutableInteractionSource() }
-    val accountInteraction = remember { MutableInteractionSource() }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.testTag("brand_logo_header")
+            modifier = Modifier
+                .then(if (onLogoClick != null) Modifier.clickable(onClick = onLogoClick) else Modifier)
+                .testTag("brand_logo_header")
         ) {
             JoyTubeSvgIcon(
                 type = JoyTubeIconType.BrandLogoLeftTriangle,
@@ -211,10 +211,10 @@ fun JoyTubeBrandHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Outlined Top-Right Action Capsule (Search + Circular Account Avatar strictly matching Image 1 & 2)
+            // Compact header keeps the search action; the account avatar is in the Account tab.
             Row(
                 modifier = Modifier
-                    .height(46.dp)
+                    .height(38.dp)
                     .joyTubeOutlinedSurface(
                         shape = JoyTubeRadius.Capsule,
                         backgroundColor = Color(0xD90A0B0E),
@@ -222,13 +222,13 @@ fun JoyTubeBrandHeader(
                         borderWidth = 1.dp,
                         topHighlightAlpha = 0.22f
                     )
-                    .padding(start = 6.dp, end = 4.dp),
+                    .padding(horizontal = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .joyTubeTouchBounce(searchInteraction, pressedScale = 0.86f)
                         .clip(CircleShape)
                         .clickable(
@@ -240,29 +240,11 @@ fun JoyTubeBrandHeader(
                 ) {
                     JoyTubeSvgIcon(
                         type = JoyTubeIconType.NavSearch,
-                        size = 19.dp,
+                        size = 17.dp,
                         tint = JoyTubeColors.TextPrimary
                     )
                 }
 
-                if (onAccountClick != null) {
-                    Box(
-                        modifier = Modifier
-                            .joyTubeTouchBounce(accountInteraction, pressedScale = 0.88f)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = accountInteraction,
-                                indication = null
-                            ) { onAccountClick() }
-                            .testTag("header_account_button"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        JoyTubeAccountAvatarBadge(
-                            initial = accountInitial,
-                            size = 36.dp
-                        )
-                    }
-                }
             }
         }
     }

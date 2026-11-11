@@ -107,6 +107,7 @@ data class JoyTubeUiState(
     val blockAdRequests: Boolean = true,
     val blockPopups: Boolean = true,
     val hideCookieBanners: Boolean = true,
+    val hideJoyTubeNav: Boolean = false,
 
     // Active Pop-up / Bottom Sheet / Dialog Overlay
     val activeOverlay: ActiveOverlay? = null,
@@ -207,6 +208,7 @@ class JoyTubeViewModel : ViewModel() {
                             blockAdRequests = cloudLibrary.getOrNull()?.settings?.optBoolean("blockAdRequests", it.blockAdRequests) ?: it.blockAdRequests,
                             blockPopups = cloudLibrary.getOrNull()?.settings?.optBoolean("blockPopups", it.blockPopups) ?: it.blockPopups,
                             hideCookieBanners = cloudLibrary.getOrNull()?.settings?.optBoolean("hideCookieBanners", it.hideCookieBanners) ?: it.hideCookieBanners,
+                            hideJoyTubeNav = cloudLibrary.getOrNull()?.settings?.optBoolean("hideJoyTubeNav", it.hideJoyTubeNav) ?: it.hideJoyTubeNav,
                             feedbackMessage = cloudLibrary.exceptionOrNull()?.let { error ->
                                 "Signed in, but cloud library failed to load: ${error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName}"
                             }
@@ -1389,6 +1391,11 @@ class JoyTubeViewModel : ViewModel() {
         saveCloudSettings()
     }
 
+    fun toggleHideJoyTubeNav() {
+        _uiState.update { it.copy(hideJoyTubeNav = !it.hideJoyTubeNav) }
+        saveCloudSettings()
+    }
+
     private fun restorePrivacyFilterSetting(settings: org.json.JSONObject?, fallback: Boolean): Boolean {
         val enabled = settings?.optBoolean("privacyFilteringEnabled", fallback) ?: fallback
         privacyFilterPreferences?.edit()?.putBoolean("enabled", enabled)?.apply()
@@ -1424,6 +1431,7 @@ class JoyTubeViewModel : ViewModel() {
             .put("blockAdRequests", state.blockAdRequests)
             .put("blockPopups", state.blockPopups)
             .put("hideCookieBanners", state.hideCookieBanners)
+            .put("hideJoyTubeNav", state.hideJoyTubeNav)
         viewModelScope.launch {
             runCatching { runCloudIo { cloudRepository.saveSettings(session, settings) } }
                 .onFailure { error -> _uiState.update { it.copy(feedbackMessage = "Settings sync failed: ${error.message}") } }
@@ -1465,6 +1473,7 @@ class JoyTubeViewModel : ViewModel() {
                             blockAdRequests = cloudLibrary.getOrNull()?.settings?.optBoolean("blockAdRequests", it.blockAdRequests) ?: it.blockAdRequests,
                             blockPopups = cloudLibrary.getOrNull()?.settings?.optBoolean("blockPopups", it.blockPopups) ?: it.blockPopups,
                             hideCookieBanners = cloudLibrary.getOrNull()?.settings?.optBoolean("hideCookieBanners", it.hideCookieBanners) ?: it.hideCookieBanners,
+                            hideJoyTubeNav = cloudLibrary.getOrNull()?.settings?.optBoolean("hideJoyTubeNav", it.hideJoyTubeNav) ?: it.hideJoyTubeNav,
                             currentRoute = JoyTubeRoute.Main(PrimaryTab.Home),
                             backStack = emptyList(),
                             activeOverlay = null,

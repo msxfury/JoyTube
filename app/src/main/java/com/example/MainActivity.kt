@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -147,7 +148,10 @@ fun JoyTubeAppRoot(
         }
     }
 
-    val showBottomDock = uiState.isSignedIn && uiState.currentRoute is JoyTubeRoute.Main && !uiState.isMediaSelectionMode
+    val showBottomDock = uiState.isSignedIn &&
+        uiState.currentRoute is JoyTubeRoute.Main &&
+        !uiState.isMediaSelectionMode &&
+        !uiState.hideJoyTubeNav
 
     CompositionLocalProvider(LocalGlassDesignEnabled provides uiState.glassDesignEnabled) {
         Box(
@@ -155,6 +159,7 @@ fun JoyTubeAppRoot(
                 .fillMaxSize()
                 .background(JoyTubeColors.Background)
                 .statusBarsPadding()
+                .navigationBarsPadding()
                 .nestedScroll(dockScrollConnection)
         ) {
             if (!uiState.isSignedIn) {

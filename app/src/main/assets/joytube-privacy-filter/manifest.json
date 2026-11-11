@@ -2,11 +2,24 @@
   "manifest_version": 2,
   "name": "JoyTube Privacy Filter",
   "version": "1.0.0",
-  "description": "Optional EasyPrivacy network filtering powered by Brave's adblock-rust.",
+  "description": "Optional EasyPrivacy privacy filtering and YouTube media controls.",
   "browser_specific_settings": {
     "gecko": { "id": "joytube-privacy-filter@joytube.local" }
   },
   "background": { "scripts": ["background.js"] },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["media-controls-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["media-controls.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "permissions": [
     "webRequest",
     "webRequestBlocking",

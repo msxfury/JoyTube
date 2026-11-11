@@ -7,7 +7,7 @@
 [![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![GeckoView](https://img.shields.io/badge/Browser-GeckoView-FF7139?logo=firefoxbrowser&logoColor=white)](https://mozilla.github.io/geckoview/)
-[![Version](https://img.shields.io/badge/Version-1.0.5-blue)](#release-information)
+[![Version](https://img.shields.io/badge/Version-1.0.6-blue)](#release-information)
 [![GitHub](https://img.shields.io/badge/GitHub-thecodencoffee%2FJoyTube-181717?logo=github)](https://github.com/thecodencoffee/JoyTube)
 
 **Maintainer: [thecodencoffee](https://github.com/thecodencoffee)** · [Latest releases](https://github.com/thecodencoffee/JoyTube/releases/latest)
@@ -22,8 +22,8 @@ JoyTube is an Android media browsing and personal-library project built with Kot
 
 | Item | Value |
 | --- | --- |
-| App version | **1.0.5** |
-| Android version code | `6` |
+| App version | **1.0.6** |
+| Android version code | `7` |
 | Minimum Android | Android 8.0 (API 26) |
 | Target Android | API 36 |
 | Maintainer | [thecodencoffee](https://github.com/thecodencoffee) |
@@ -35,6 +35,11 @@ JoyTube is an Android media browsing and personal-library project built with Kot
 | YouTube Home inside JoyTube | Shows YouTube's mobile homepage in the Home tab. | GeckoView loads `https://m.youtube.com` within the app shell. JoyTube's branded header and floating navigation remain available. | Uses YouTube's website directly. Network access and YouTube's own availability, sign-in, playback, and page behavior apply. |
 | YouTube Shorts inside JoyTube | Opens YouTube Shorts from JoyTube's Shorts tab. | GeckoView loads `https://m.youtube.com/shorts` so the page's own gestures and controls handle Shorts browsing. | Depends on YouTube's mobile website and device/network compatibility. |
 | YouTube Search inside JoyTube | Opens YouTube's own search page from the top-right search control or Search tab. | GeckoView loads YouTube's mobile results page; queries and result interactions are handled by YouTube's page. | JoyTube does not proxy the search or guarantee YouTube results. |
+| YouTube quality preference | Offers Auto, highest available, and resolution choices on YouTube video pages. | A built-in GeckoView content script requests the chosen tier from YouTube's player and falls back to a tier the player reports as available. | YouTube owns the stream and available quality tiers. The player hook is undocumented and may change. Choosing Auto may require reloading a video after a fixed tier was requested. No Premium tier is unlocked and no source quality is created or enhanced. |
+| YouTube volume boost | Adds a volume control for HTML video and audio on YouTube and YouTube Music. | Uses a Web Audio gain stage and compressor, up to 250%, when the active media stream can safely be routed. | Some streams do not allow Web Audio routing and remain at normal YouTube volume. Strong boosts can still distort audio. |
+| Compact JoyTube header | Keeps the JoyTube wordmark at top left and YouTube search at top right. | Uses a shorter in-app header and removes the separate account avatar action. | Account remains accessible from the bottom dock; when the dock is hidden, tap the JoyTube wordmark to return to Account. |
+| Hide JoyTube navigation | Hides the floating JoyTube dock so YouTube's own page controls have more room. | The setting is under Settings → Application and syncs with JoyTube account settings. The YouTube viewport reserves space for the dock when visible. | Can be turned back on from Settings; with the dock hidden, tap the JoyTube wordmark to open Account. |
+| Account destinations | Provides New Imported Joy's, settings, collections, and personal library access. | Account no longer lists History or Browser destinations; browser controls remain in the Browser feature. | Browser and History screens still exist in the app but are not Account shortcuts. |
 | GeckoView browser | Displays web pages entered or opened in the built-in browser; links requesting a new window stay in the current JoyTube browser page. | Uses a shared GeckoView runtime and an in-app browser session. JoyTube's Back, Forward, and Refresh controls use the current Gecko session history. | Implemented for web browsing. Individual sites may ignore the dark preference or behave differently from Firefox. |
 | Optional privacy filtering | Filters matching tracker network requests in the GeckoView browser. | Brave's official Rust `adblock` engine (version 0.13.5) is compiled to WebAssembly and runs in a built-in GeckoView extension with the EasyPrivacy list. The Rust engine and request listener initialize only when the setting is enabled. | Off by default. Filtering applies to GeckoView only; YouTube-owned domains and requests from YouTube pages are exempt. It does not remove YouTube ads, hide page elements, or affect the separate YouTube player. |
 | Filter-list refresh | Keeps the bundled EasyPrivacy rules current. | When filtering is enabled, downloads are validated and parsed into a new engine before swapping it in; failures retain the previous working list. | Checks every four days while enabled. Requires network access for updates; the bundled list supports first use and offline startup. |
@@ -48,9 +53,11 @@ JoyTube is an Android media browsing and personal-library project built with Kot
 | Theme and app information | Offers JoyTube theme settings and in-app About and Terms/Privacy screens. | Native Compose screens display app settings and descriptions of current behavior. | Screens are included; cloud persistence depends on Supabase configuration. |
 | Rust API service | Provides an optional Rust/Axum Supabase proxy scaffold. | Source exists separately from the Android app. | Not deployed and not connected to the Android client. |
 
+The media controls are opened from the floating speaker button over the YouTube page. They run only on YouTube domains. Quality controls are hidden on YouTube Music, where the page controls audio playback. The selected quality and boost are stored in GeckoView's local extension storage; they are not uploaded to Supabase. The controls do not intercept requests or change YouTube advertising behavior.
+
 ### Android release APKs
 
-Release builds produce separate APKs for ARM64, ARMv7, and x86_64 devices. Install the APK matching the device architecture; there is no universal APK. For a Samsung Galaxy S21, use `JoyTube-Android-v1.0.5-arm64-v8a.apk`. GeckoView includes a large native browser engine, while the privacy-filter assets add about 1.16 MB compressed to each APK. The Rust filter itself is WebAssembly, so it does not add separate Rust native libraries for each CPU architecture.
+Release builds produce separate APKs for ARM64, ARMv7, and x86_64 devices. Install the APK matching the device architecture; there is no universal APK. For a Samsung Galaxy S21, use the ARM64 APK. GeckoView includes a large native browser engine, while the privacy-filter and media-control assets add browser features without separate native libraries per CPU architecture.
 
 ### What the YouTube browser does not do
 
@@ -60,7 +67,7 @@ The GeckoView browser displays YouTube's website inside JoyTube. It does not tur
 
 | Stage | Focus | Status |
 | --- | --- | --- |
-| Current Android release (1.0.5) | YouTube Home, Shorts, and Search inside GeckoView; public New Imported Joy's feed; optional Rust/EasyPrivacy filtering; Google profile display and release notices | Included in the Android source. The public feed is read-only and requires media uploaded and published to Supabase Storage. YouTube page behavior depends on YouTube, device, and network availability. |
+| Current Android release (1.0.6) | YouTube Home, Shorts, and Search inside GeckoView; compact header and hideable JoyTube dock; public New Imported Joy's feed; optional Rust/EasyPrivacy filtering | Included in the Android source. The public feed is read-only and requires media uploaded and published to Supabase Storage. YouTube page behavior depends on YouTube, device, and network availability. |
 | Next | Improve search and browser reliability across Android devices | Planned; depends on upstream YouTube website behavior. |
 | Future | Evaluate a native iOS client | Planned; not included in this Android repository. |
 
@@ -73,7 +80,8 @@ JoyTube uses Google sign-in to establish a JoyTube account through Supabase. It 
 - YouTube's mobile website controls playback eligibility, ads, captions, and available quality.
 - Google sign-in to JoyTube does not automatically sign in to YouTube inside GeckoView or link YouTube subscriptions.
 - The New Imported Joy's tab reads public uploaded media; the app does not yet provide a complete public upload/publish workflow.
-- Privacy filtering runs only in GeckoView and adds memory use while enabled; it does not filter YouTube traffic.
+- Privacy filtering runs only in GeckoView and adds memory use while enabled; YouTube pages and media hosts are exempt to avoid disrupting playback.
+- JoyTube's browser controls can request a quality tier YouTube exposes and boost compatible HTML media through Web Audio. YouTube still chooses the actual stream and may ignore a quality request; Web Audio may be unavailable for a stream. Neither control extracts media, unlocks paid quality, or changes ad requests.
 - Android 8.0 (API 26) is the minimum supported version for the pinned GeckoView 145 dependency.
 - A 30-minute update interval applies while the app is running; Android does not guarantee exact background timing.
 - The Rust API is not deployed. Supabase features require the project's provider settings, migrations, and row-level security policies.
