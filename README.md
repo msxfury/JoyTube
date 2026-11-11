@@ -9,7 +9,7 @@
 [![GeckoView](https://img.shields.io/badge/Browser-GeckoView-FF7139?logo=firefoxbrowser&logoColor=white)](https://mozilla.github.io/geckoview/)
 [![Version](https://img.shields.io/badge/Version-1.0.3-blue)](#release-information)
 
-**Maintainer: [msxfury](https://github.com/msxfury)**
+**Maintainer: [thecodencoffee](https://github.com/thecodencoffee)**
 
 </div>
 
@@ -25,7 +25,7 @@ JoyTube is an Android media browsing and personal-library project. The app is bu
 | Android version code | `4` |
 | Minimum Android | Android 8.0 (API 26) |
 | Target Android | API 36 |
-| Maintainer | [msxfury](https://github.com/msxfury) |
+| Maintainer | [thecodencoffee](https://github.com/thecodencoffee) |
 
 ## Features
 
@@ -78,4 +78,4 @@ JoyTube uses Google sign-in to establish a JoyTube account through Supabase. It 
 
 ## Maintainer
 
-Created and maintained by **[msxfury](https://github.com/msxfury)**.
+Created and maintained by **[thecodencoffee](https://github.com/thecodencoffee)**.
